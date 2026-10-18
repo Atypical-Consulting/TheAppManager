@@ -82,9 +82,21 @@ public sealed class AppModuleTestHost : IAsyncDisposable
             configure(builder);
         }
 
-        _app = ModulePipeline.Build(builder, _modules);
+        var app = builder.AddModules(_modules).Build();
 
-        await _app.StartAsync();
+        try
+        {
+            app.UseModules();
+            app.MapModules();
+            await app.StartAsync();
+        }
+        catch
+        {
+            await app.DisposeAsync();
+            throw;
+        }
+
+        _app = app;
         return this;
     }
 
