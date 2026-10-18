@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.1.0](https://github.com/Atypical-Consulting/TheAppManager/compare/v2.0.0...v2.1.0) (2026-10-18)
+
+
+### Features
+
+* add AppManager.StartAsync and RunAsync for async application startup ([a5affa0](https://github.com/Atypical-Consulting/TheAppManager/commit/a5affa04c839dddcfa871f2bd1234d2d4f3246cd))
+
 ## [2.0.0] - 2026-03-09
 
 ### Added
