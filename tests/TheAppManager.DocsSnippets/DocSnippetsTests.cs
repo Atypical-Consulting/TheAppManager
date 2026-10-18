@@ -8,6 +8,7 @@ public sealed class DocSnippetsTests
     private static readonly Dictionary<string, string> Inline = new() { ["hello"] = "var x = 1;\nConsole.WriteLine(x);" };
 
     [Theory]
+    [InlineData("README.md")]
     [InlineData("docs/migration-v2-to-v3.md")]
     public void Document_snippets_match_compiled_sources(string relativePath)
     {
