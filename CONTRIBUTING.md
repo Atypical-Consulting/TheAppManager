@@ -30,12 +30,17 @@ Thank you for your interest in contributing to TheAppManager! This guide will he
 ## Project Structure
 
 ```
-src/TheAppManager/              - Class library (published as NuGet package)
-samples/TheAppManager.Sample/   - Sample ASP.NET Core app demonstrating usage
+src/TheAppManager/              - Core library (NuGet package TheAppManager)
+src/TheAppManager.Testing/      - Test host and WebApplicationFactory helpers (NuGet package TheAppManager.Testing)
+samples/                        - Web, Spectre.Console and Aspire samples, plus their tests
 tests/TheAppManager.Tests/      - Unit and integration tests
+tests/TheAppManager.DocsSnippets/ - Compiled mirrors of the documentation's C# blocks
+tests/TheAppManager.AotSmoke/   - Native AOT smoke app
 ```
 
 ## Making Changes
+
+`dev` is the default branch: branch from it and open pull requests against it.
 
 1. Create a feature branch from `dev`:
    ```bash
@@ -47,6 +52,23 @@ tests/TheAppManager.Tests/      - Unit and integration tests
    ```bash
    dotnet test
    ```
+
+## Commit Messages
+
+The project uses [Conventional Commits](https://www.conventionalcommits.org/), because
+[release-please](https://github.com/googleapis/release-please) reads them to pick the next version and write the changelog.
+
+- Format: `type(scope): summary`, e.g. `fix: keep the module order when replacing`.
+- `feat`, `fix`, `perf` and `refactor` appear in the changelog; `docs`, `test`, `build`, `ci` and `chore` do not.
+- A breaking change adds `!` after the type (`feat!: ...`) and a `BREAKING CHANGE: <what breaks and how to migrate>` footer.
+- Pull requests are squash-merged, so the PR title becomes the commit on `dev`. Release-please then opens the release PR.
+
+## Documentation Snippets
+
+Every C# block in `README.md`, `docs/migration-v2-to-v3.md` and the packages' `NUGET.md` files must have a mirrored
+snippet. Put `<!-- snippet: name -->` on the line before the block, and the same code between
+`// begin-snippet: name` and `// end-snippet` in `tests/TheAppManager.DocsSnippets/Snippets/*.cs`. The build compiles
+the snippet, and `DocSnippetsTests` fails when the block and the snippet drift apart.
 
 ## Code Style
 
@@ -70,14 +92,14 @@ General guidelines:
    dotnet build --configuration Release
    ```
 3. Ensure all tests pass.
-4. Push your branch and open a Pull Request against `dev`.
+4. Push your branch and open a Pull Request against `dev`. It is squash-merged.
 5. Title the PR as a [Conventional Commit](https://www.conventionalcommits.org/): `type(scope): summary`, with `!` before the colon for a breaking change (`feat!: ...`). PRs are squash-merged, so the title becomes the commit release-please reads to pick the next version; the `PR title` check enforces it. Allowed types: `feat`, `fix`, `perf`, `refactor`, `revert`, `docs`, `test`, `build`, `ci`, `chore`.
 6. Describe what your PR does and why.
 7. Address any review feedback.
 
 ## Reporting Issues
 
-- Use the [GitHub issue tracker](https://github.com/phmatray/TheAppManager/issues).
+- Use the [GitHub issue tracker](https://github.com/Atypical-Consulting/TheAppManager/issues).
 - Search existing issues before creating a new one.
 - Provide a clear description, steps to reproduce, and the expected vs. actual behavior.
 

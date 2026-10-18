@@ -1,403 +1,389 @@
-![TheAppManager banner](.github/banner.png)
+![TheAppManager banner](https://raw.githubusercontent.com/Atypical-Consulting/TheAppManager/dev/.github/banner.png)
 
 <p align="center">
-  <img src="logo.png" alt="TheAppManager" width="128" />
+  <img src="https://raw.githubusercontent.com/Atypical-Consulting/TheAppManager/dev/logo.png" alt="TheAppManager" width="128" />
 </p>
 
 # TheAppManager
 
-> A lightweight, composable module system for ASP.NET Core application startup.
+> Compose `Program.cs` from ordered, testable modules — extensions on the builder you already have, not a replacement for it.
 
-[![CI](https://github.com/phmatray/TheAppManager/actions/workflows/ci.yml/badge.svg)](https://github.com/phmatray/TheAppManager/actions/workflows/ci.yml)
+[![CI](https://github.com/Atypical-Consulting/TheAppManager/actions/workflows/ci.yml/badge.svg)](https://github.com/Atypical-Consulting/TheAppManager/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/TheAppManager.svg)](https://www.nuget.org/packages/TheAppManager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Table of Contents
 
-- [Overview](#overview)
-  - [Architecture](#architecture)
-  - [Why Modules?](#why-modules)
+- [Why modules?](#why-modules)
 - [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Creating Modules](#creating-modules)
-  - [A Minimal Module](#a-minimal-module)
-  - [Module Ordering](#module-ordering)
-  - [Conditional Modules](#conditional-modules)
-- [Assembly Scanning (opt-in)](#assembly-scanning-opt-in)
+- [Quick start](#quick-start)
+- [`IAppModule` vs `IWebModule`](#iappmodule-vs-iwebmodule)
+- [Lifecycle](#lifecycle)
+- [Composing modules](#composing-modules)
+- [Assembly scanning (opt-in)](#assembly-scanning-opt-in)
+- [Hosting models](#hosting-models)
 - [Testing](#testing)
-  - [Integration Testing with AppModuleTestHost](#integration-testing-with-appmoduletesthost)
-  - [Replacing Modules in Tests](#replacing-modules-in-tests)
-  - [Replacing modules under WebApplicationFactory](#replacing-modules-under-webapplicationfactory)
-- [Async Support](#async-support)
-- [Builder Configuration Hook](#builder-configuration-hook)
-- [Advanced: Using AppManagerBuilder](#advanced-using-appmanagerbuilder)
-- [Project Structure](#project-structure)
+- [Patterns the framework already gives you](#patterns-the-framework-already-gives-you)
+- [Out of scope](#out-of-scope)
+- [Samples](#samples)
+- [Migrating from v2](#migrating-from-v2)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Overview
+## Why modules?
 
-TheAppManager lets you organize your ASP.NET Core startup into independent, composable **modules**. Each module encapsulates its own services, middleware, and endpoints — keeping `Program.cs` clean and making features reusable across projects.
+A feature touches startup in up to three places: services, middleware and endpoints. TheAppManager puts
+the three in one class, a **module**, and composes modules in one visible, ordered list. The list is
+plain data, so the same composition runs in production and in tests, and a test can swap any module.
 
-### Architecture
-
-```
-                    ┌──────────────────────┐
-                    │   AppManager.Start() │
-                    └──────────┬───────────┘
-                               │
-                    ┌──────────▼───────────┐
-                    │  AppManagerBuilder    │
-                    │  ┌─────────────────┐ │
-                    │  │ WebApplication  │ │
-                    │  │ Builder         │ │
-                    │  └─────────────────┘ │
-                    └──────────┬───────────┘
-                               │ applies in registration order
-              ┌────────────────┼────────────────┐
-              │                │                │
-    ┌─────────▼──────┐ ┌──────▼───────┐ ┌──────▼───────┐
-    │ SwaggerModule  │ │  AuthModule  │ │ WeatherModule│
-    │ ├ Services     │ │ ├ Services   │ │ ├ Services   │
-    │ └ Middleware   │ │ └ Middleware  │ │ └ Endpoints  │
-    └────────────────┘ └──────────────┘ └──────────────┘
-```
-
-### Why Modules?
-
-As ASP.NET Core applications grow, `Program.cs` accumulates unrelated service registrations, middleware, and endpoint mappings. Modules solve this by letting each feature own its startup logic:
-
-- **Composable** — add, remove, or reorder modules without touching other code
-- **Reusable** — package a module in a NuGet library and share it across projects
-- **Testable** — each module can be tested in isolation with `AppModuleTestHost`
-- **Transparent ordering** — modules run in the order you register them, just like middleware
-
-## Features
-
-- **Composable modules** — encapsulate services, middleware, and endpoints into independent `IAppModule` implementations
-- **Registration-order execution** — modules are applied in the order you add them, no magic priority numbers
-- **Opt-in assembly scanning** — discover modules explicitly with `AddFromAssemblyOf<T>()` / `AddFromAssembly(assembly)`
-- **Conditional registration** — add modules only when conditions are met with `AddIf<T>(bool)`
-- **Module replacement** — swap modules for test doubles with `Replace<TOld, TNew>()`
-- **Test host** — `AppModuleTestHost` builds a TestServer from modules for integration testing
-- **Fluent API** — chain module registrations for readable startup code
-- **Async support** — run applications asynchronously with `StartAsync` and `RunAsync`
-- **Builder hook** — customize `WebApplicationBuilder` before modules are applied
-- **Minimal dependencies** — built on the `Microsoft.AspNetCore.App` framework reference, plus `Microsoft.AspNetCore.TestHost`, which backs `AppModuleTestHost` and ships with the package
+There is no new host and no container wrapper: `AddModules`, `UseModules` and `MapModules` are extension
+methods on the ASP.NET Core and Generic Host builders. Everything you know about `Program.cs` still applies.
 
 ## Installation
 
 ```bash
 dotnet add package TheAppManager
+dotnet add package TheAppManager.Testing   # in test projects
 ```
 
-## Usage
+Every type lives in the `TheAppManager` namespace (`TheAppManager.Testing` for the test helpers). The
+core library targets .NET 10 and is trimming and Native AOT compatible, except for assembly scanning.
 
-Clone the repository and run the bundled sample, which wires up `SwaggerModule`, `AuthModule`, and `WeatherModule` through `AppManager.Start`:
+## Quick start
 
-```bash
-dotnet run --project samples/TheAppManager.Sample
-```
+Write modules. Each hook is optional, so a module implements only what it needs:
 
-This starts an ASP.NET Core app with Swagger UI (in development) and a `/weatherforecast` endpoint, each contributed by its own `IAppModule` — no logic in `Program.cs` beyond the module list. In your own project, the minimal integration looks like:
-
+<!-- snippet: readme-modules -->
 ```csharp
-using TheAppManager.Startup;
-
-AppManager.Start(args, modules =>
+public sealed class ErrorHandlingModule : IWebModule
 {
-    modules
-        .Add<SwaggerModule>()
-        .Add<AuthModule>()
-        .Add<WeatherModule>();
-});
-```
-
-See [Creating Modules](#creating-modules) below for how to implement `IAppModule`.
-
-## Quick Start
-
-Register modules explicitly in `Program.cs`:
-
-```csharp
-using TheAppManager.Startup;
-
-AppManager.Start(args, modules =>
-{
-    modules
-        .Add<SwaggerModule>()
-        .Add<AuthModule>()
-        .Add<WeatherModule>();
-});
-```
-
-Or let TheAppManager discover modules automatically:
-
-```csharp
-using TheAppManager.Startup;
-
-AppManager.Start(args);
-```
-
-## Creating Modules
-
-### A Minimal Module
-
-Implement `IAppModule` and override only what you need. All methods have default no-op implementations:
-
-```csharp
-using TheAppManager.Modules;
-
-public class SwaggerModule : IAppModule
-{
-    public void ConfigureServices(WebApplicationBuilder builder)
-    {
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-    }
+    public void ConfigureServices(IHostApplicationBuilder builder)
+        => builder.Services.AddProblemDetails();
 
     public void ConfigureMiddleware(WebApplication app)
-    {
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
-    }
+        => app.UseExceptionHandler();
 }
-```
 
-A module that only registers endpoints:
-
-```csharp
-public class WeatherModule : IAppModule
+public sealed class WeatherModule : IWebModule
 {
-    public void ConfigureServices(WebApplicationBuilder builder)
-    {
-        builder.Services.AddScoped<WeatherForecastService>();
-    }
+    public void ConfigureServices(IHostApplicationBuilder builder)
+        => builder.Services.AddSingleton<WeatherService>();
 
     public void ConfigureEndpoints(IEndpointRouteBuilder endpoints)
-    {
-        endpoints.MapGet("/weatherforecast", (WeatherForecastService svc) =>
-            Results.Ok(svc.GetForecasts()));
-    }
+        => endpoints.MapGet("/weatherforecast", (WeatherService weather) => weather.Get());
 }
 ```
 
-Note that `ConfigureServices` receives `WebApplicationBuilder` (not just `IServiceCollection`), giving you access to `builder.Configuration`, `builder.Environment`, and `builder.Host` when you need them.
+Compose them in `Program.cs`:
 
-### Module Ordering
-
-Modules are applied in **registration order** — the order you call `Add<T>()`. This is the same principle as ASP.NET Core middleware: what you register first runs first.
-
+<!-- snippet: readme-program -->
 ```csharp
-AppManager.Start(args, modules =>
-{
-    modules
-        .Add<SwaggerModule>()    // services & middleware first
-        .Add<AuthModule>()       // auth middleware second
-        .Add<WeatherModule>();   // endpoints last
-});
+var builder = WebApplication.CreateBuilder(args);
+builder.AddModules(m => m
+    .Add<ErrorHandlingModule>()
+    .Add<WeatherModule>());
+
+var app = builder.Build();
+app.UseModules();
+app.MapModules();
+app.Run();
 ```
 
-### Conditional Modules
+For the simple web case, `AppManager.RunAsync` does the same in one call:
 
-Use `AddIf<T>()` to register modules based on runtime conditions:
-
+<!-- snippet: readme-runasync -->
 ```csharp
-var isDev = builder.Environment.IsDevelopment();
+await AppManager.RunAsync(args, m => m
+    .Add<ErrorHandlingModule>()
+    .Add<WeatherModule>());
+```
 
-AppManager.Start(args, modules =>
+## `IAppModule` vs `IWebModule`
+
+| Interface | Hooks | Called by |
+|---|---|---|
+| `IAppModule` | `ConfigureServices(IHostApplicationBuilder)` | `builder.AddModules(...)` on any host: web, worker, console |
+| `IWebModule : IAppModule` | adds `ConfigureMiddleware(WebApplication)` and `ConfigureEndpoints(IEndpointRouteBuilder)` | `app.UseModules()` and `app.MapModules()` on a web app |
+
+A worker or console host only runs `ConfigureServices`. `UseModules` and `MapModules` skip modules that are
+not `IWebModule`. Every hook has a default no-op implementation.
+
+## Lifecycle
+
+Modules do not run end to end one after the other. Startup runs in four phases, and each phase walks the
+modules **in registration order**:
+
+```text
+builder.AddModules(...)   ConfigureServices    A → B → C
+builder.Build()           (the container is built)
+app.UseModules()          ConfigureMiddleware  A → B → C   (IWebModule only)
+app.MapModules()          ConfigureEndpoints   A → B → C   (IWebModule only)
+```
+
+So module A's middleware runs before module B's for every request, including requests to B's endpoints.
+**Register exception-handling and authentication/authorization modules first: their middleware must run
+before any module's endpoints.**
+
+- `AddModules` resolves the plan once: `AddIf` predicates are evaluated a single time against the real
+  builder, so a module can never be active in one phase and missing from another.
+- The resolved plan (each module and whether it is applied) is logged at `Information` when the host
+  starts, and is available from DI as `ModulePlan`.
+- `AddModules`, `UseModules` and `MapModules` each run once per app; a second call throws.
+- A module instance belongs to one host. Do not share an instance between hosts (for example two test
+  hosts); register the type, or create a new instance per host.
+
+## Composing modules
+
+Name the composition once, in a static method, so `Program.cs` and the tests use the same list:
+
+<!-- snippet: readme-composition -->
+```csharp
+public static class AppModules
 {
-    modules
-        .AddIf<SwaggerModule>(isDev)
+    public static void Configure(AppModuleCollection modules) => modules
+        .Add<ErrorHandlingModule>()
         .Add<AuthModule>()
+        .AddIf<SwaggerModule>(b => b.Environment.IsDevelopment())
+        .AddIf<MetricsModule>(b => b.Configuration.GetValue<bool>("Features:Metrics"))
         .Add<WeatherModule>();
-});
+}
 ```
 
-The `configure` callback runs before the `WebApplicationBuilder` exists. To decide from the environment or configuration, pass a predicate; it runs once, when the app is built, against the real builder (after any `ConfigureBuilder` callbacks):
+`Program.cs` then calls `builder.AddModules(AppModules.Configure)`.
 
+- **`AddIf`** takes a predicate on the `IHostApplicationBuilder`, so a condition can read the environment
+  or configuration.
+- **`Replace<TOld, TNew>()`** swaps a module type and keeps its position and its predicate. `AddModules`
+  also accepts a prebuilt collection:
+
+  <!-- snippet: readme-replace -->
+  ```csharp
+  var modules = new AppModuleCollection();
+  AppModules.Configure(modules);
+  modules.Replace<WeatherModule, CachedWeatherModule>();
+
+  builder.AddModules(modules);
+  ```
+
+- **Duplicates throw.** A module type registered twice is almost always a mistake, so `AddModules` throws.
+  Mark the class `[AllowMultipleInstances]` when several instances are intended, then add instances with
+  `m.Add(new HealthCheckModule("db")).Add(new HealthCheckModule("cache"))`:
+
+  <!-- snippet: readme-multiple -->
+  ```csharp
+  [AllowMultipleInstances]
+  public sealed class HealthCheckModule(string name) : IAppModule
+  {
+      public void ConfigureServices(IHostApplicationBuilder builder)
+          => builder.Services.AddHealthChecks().AddCheck(name, () => HealthCheckResult.Healthy());
+  }
+  ```
+
+## Assembly scanning (opt-in)
+
+Explicit registration is the default and the recommended path. To pick up every module of an assembly:
+
+<!-- snippet: readme-discovery -->
 ```csharp
-AppManager.Start(args, modules => modules
-    .AddIf<SwaggerModule>(b => b.Environment.IsDevelopment()));
+builder.AddModules(m => m.AddFromAssemblyOf<Program>());
 ```
 
-A module swapped in with `Replace<TOld, TNew>()` keeps the predicate of the module it replaces.
+- Scanned modules are added in ordinal order of their full type name, not in a meaningful order. Prefer
+  explicit registration when middleware order matters.
+- Scanning finds non-abstract, non-generic classes with a public parameterless constructor. Mark a
+  type `[ExcludeFromDiscovery]` to skip it.
+- It throws when the assembly contains no module, so a wrong anchor type fails loudly.
+- `AddFromAssembly` and `AddFromAssemblyOf` are marked `[RequiresUnreferencedCode]`: reflection over an
+  assembly is not trimming or Native AOT safe. Everything else in the library is.
 
-## Assembly Scanning (opt-in)
+## Hosting models
 
-Nothing is discovered implicitly: `AppManager.Start(args, configure)` only registers what you add. To register every module of an assembly, scan it explicitly:
+**Worker and console apps** use the Generic Host and `IAppModule`. Spectre.Console apps take the same path:
 
+<!-- snippet: readme-worker-module -->
 ```csharp
-AppManager.Start(args, modules =>
+public sealed class OrderProcessingModule : IAppModule
 {
-    // Scan the assembly containing Program (the anchor type need not be a module)
-    modules.AddFromAssemblyOf<Program>();
-
-    // Or scan a specific assembly, e.g. a referenced library
-    modules.AddFromAssembly(typeof(SomeLibraryModule).Assembly);
-
-    // Mix with explicit registration
-    modules.Add<MyAppModule>();
-});
+    public void ConfigureServices(IHostApplicationBuilder builder)
+        => builder.Services.AddHostedService<OrderProcessor>();
+}
 ```
 
-What a scan picks up:
+<!-- snippet: readme-worker -->
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+builder.AddModules(m => m
+    .Add<MessagingModule>()
+    .Add<OrderProcessingModule>());
 
-- Non-abstract, non-generic classes implementing `IAppModule` with a public parameterless constructor. `internal` modules are included; classes nested in a `private`, `protected` or `private protected` type are not. Modules that need constructor arguments are skipped: add them as instances.
-- Modules are added sorted by ordinal `Type.FullName`, so order does not depend on reflection order. For order-sensitive applications, prefer explicit `Add<T>()`.
-- Mark a module with `[ExcludeFromDiscovery]` to keep it out of scans; it can still be added explicitly. The attribute is not inherited.
-- A scan that finds no module throws `InvalidOperationException` naming the assembly.
-- Scanned modules follow the same identity rule as `Add`: a type registered twice (for example `Add<X>()` plus a scan that finds `X`) throws at resolve time unless the class has `[AllowMultipleInstances]`. Recorded `Replace` substitutions apply to scanned modules too. If the replacement type lives in the scanned assembly, mark it `[ExcludeFromDiscovery]`, or it is added twice.
+await builder.Build().RunAsync();
+```
 
-Scanning uses reflection and is annotated `[RequiresUnreferencedCode]`: it is not trim- or Native AOT-safe. Prefer `Add<T>()` in trimmed or AOT apps.
+**Aspire.** Call the service defaults on the same builder, before or after `AddModules`:
+
+<!-- snippet: readme-aspire -->
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
+builder.AddModules(AppModules.Configure);
+
+var app = builder.Build();
+app.UseModules();
+app.MapDefaultEndpoints();
+app.MapModules();
+app.Run();
+```
+
+**Mounting under a route group.** `MapModules` works on any `IEndpointRouteBuilder`, so every module's
+endpoints can share a prefix and a policy:
+
+<!-- snippet: readme-mapgroup -->
+```csharp
+app.UseModules();
+app.MapGroup("/api").RequireAuthorization().MapModules();
+```
 
 ## Testing
 
-### Integration Testing with AppModuleTestHost
+The `TheAppManager.Testing` package offers two ways in.
 
-`AppModuleTestHost` builds a TestServer from your modules, making integration tests simple:
+**Slice tests with `AppModuleTestHost`.** Start a subset of modules on a TestServer, exactly as production
+hosting does (`AddModules` → `Build` → `UseModules` → `MapModules`). `ConfigureTestServices` runs after
+every module's `ConfigureServices`, so a fake registered there wins:
 
+<!-- snippet: readme-testhost -->
 ```csharp
-using TheAppManager.Testing;
-
-[Fact]
-public async Task WeatherEndpoint_ReturnsForecasts()
-{
-    await using var host = await new AppModuleTestHost()
-        .Add<WeatherModule>()
-        .StartAsync();
-
-    var client = host.GetTestClient();
-    var response = await client.GetAsync("/weatherforecast");
-
-    response.StatusCode.ShouldBe(HttpStatusCode.OK);
-}
-```
-
-You can also resolve services directly:
-
-```csharp
-await using var host = await new AppModuleTestHost()
-    .Add<WeatherModule>()
+await using var host = await new AppModuleTestHost(m => m.Add<WeatherModule>())
+    .ConfigureTestServices(s => s.AddSingleton<IWeatherSource, FakeWeatherSource>())
     .StartAsync();
 
-var service = host.GetRequiredService<WeatherForecastService>();
+var response = await host.CreateClient().GetAsync("/weatherforecast");
+response.EnsureSuccessStatusCode();
 ```
 
-### Replacing Modules in Tests
+Pass the production composition to test all of it, without `Program.cs`:
 
-Use `Replace<TOld, TNew>()` to swap a real module for a test double:
-
+<!-- snippet: readme-testhost-production -->
 ```csharp
-public class FakeAuthModule : IAppModule
-{
-    public void ConfigureServices(WebApplicationBuilder builder)
-    {
-        builder.Services.AddSingleton<IAuthService, FakeAuthService>();
-    }
-}
-
-await using var host = await new AppModuleTestHost()
-    .Add<AuthModule>()
-    .Add<WeatherModule>()
-    .Replace<AuthModule, FakeAuthModule>()
-    .StartAsync();
+await using var host = await new AppModuleTestHost(AppModules.Configure).StartAsync();
 ```
 
-### Replacing modules under WebApplicationFactory
+**The real app under `WebApplicationFactory`.** `WithModules` edits the composition of `Program` after its
+own `AddModules` call and before the plan is resolved:
 
-To test the real app (`Program`) with a module swapped or removed, use `WithModules` on a
-`WebApplicationFactory<Program>`. The amendment runs after `Program`'s own `AddModules` composition and
-before the plan is resolved; chained calls apply in call order, and parallel factories stay isolated.
-
+<!-- snippet: readme-waf -->
 ```csharp
-using TheAppManager.Testing;
-
 await using var factory = new WebApplicationFactory<Program>()
-    .WithModules(m => m.Replace<SmtpModule, FakeSmtpModule>())
-    .WithModules(m => m.Without<SwaggerModule>());
+    .WithModules(m => m
+        .Replace<WeatherModule, FakeWeatherModule>()
+        .Without<SwaggerModule>());
 
-var client = factory.CreateClient();
+var response = await factory.CreateClient().GetAsync("/api/weatherforecast");
+response.EnsureSuccessStatusCode();
 ```
 
 `Program` must pass `args` to `WebApplication.CreateBuilder(args)`: the amendment reaches the app through
-those arguments, and building the host throws `InvalidOperationException` when it was not applied. To swap
-a single service rather than a module, use `WebApplicationFactory`'s own `ConfigureTestServices`.
+them, and building the host throws when it was not applied. Chained `WithModules` calls apply in call order.
+To swap a single service rather than a module, use `WebApplicationFactory`'s own `ConfigureTestServices`.
 
-## Async Support
+## Patterns the framework already gives you
 
-Use `StartAsync` for async startup:
+TheAppManager stays small because ASP.NET Core already covers these. Use them inside modules.
 
-```csharp
-await AppManager.StartAsync(args, modules =>
-{
-    modules
-        .Add<SwaggerModule>()
-        .Add<WeatherModule>();
-});
-```
+- **Route groups**: `MapGroup` (see [Mounting under a route group](#hosting-models)), or a group inside one
+  module's `ConfigureEndpoints`.
+- **Options validation**: fail fast on bad configuration with `ValidateOnStart`, from `ConfigureServices`:
 
-## Builder Configuration Hook
+  <!-- snippet: readme-validate -->
+  ```csharp
+  public sealed class WeatherModule : IWebModule
+  {
+      public void ConfigureServices(IHostApplicationBuilder builder)
+          => builder.Services.AddOptions<WeatherOptions>()
+              .Bind(builder.Configuration.GetSection("Weather"))
+              .Validate(o => o.Days is > 0 and <= 14, "Weather:Days must be between 1 and 14.")
+              .ValidateOnStart();
+  }
+  ```
 
-Customize the `WebApplicationBuilder` before modules are applied:
+- **Modules of modules**: group registrations in an extension method and call it from a module. The
+  extension stays usable without TheAppManager:
 
-```csharp
-AppManager.Start(
-    args,
-    modules =>
-    {
-        modules
-            .Add<SwaggerModule>()
-            .Add<WeatherModule>();
-    },
-    builder =>
-    {
-        builder.Configuration.AddJsonFile("custom-settings.json", optional: true);
-    });
-```
+  <!-- snippet: readme-bundle -->
+  ```csharp
+  public static class BillingServiceCollectionExtensions
+  {
+      public static IServiceCollection AddBilling(this IServiceCollection services)
+          => services
+              .AddSingleton<InvoiceService>()
+              .AddSingleton<TaxCalculator>();
+  }
 
-## Advanced: Using AppManagerBuilder
+  public sealed class BillingModule : IAppModule
+  {
+      public void ConfigureServices(IHostApplicationBuilder builder)
+          => builder.Services.AddBilling();
+  }
+  ```
 
-For full control, use `AppManagerBuilder` directly:
+- **Overridable defaults**: when two modules register the same service, the last registration wins and
+  nothing detects it. A module that only provides a default should use `TryAdd*`, so a module registered
+  before it (or `Program.cs`) can supply its own implementation:
 
-```csharp
-using TheAppManager.Modules;
-using TheAppManager.Startup;
+  <!-- snippet: readme-tryadd -->
+  ```csharp
+  public sealed class EmailModule : IAppModule
+  {
+      public void ConfigureServices(IHostApplicationBuilder builder)
+          => builder.Services.TryAddSingleton<IEmailSender, SmtpEmailSender>();
+  }
+  ```
 
-var modules = new AppModuleCollection()
-    .Add<SwaggerModule>()
-    .Add<AuthModule>()
-    .Add<WeatherModule>();
+## Out of scope
 
-var appManager = new AppManagerBuilder(args)
-    .ConfigureBuilder(builder =>
-    {
-        builder.Configuration.AddJsonFile("custom-settings.json");
-    })
-    .Build(modules);
+These are deliberate non-goals, written down so they are not re-debated:
 
-await appManager.RunAsync();
-```
+- **Async hooks.** Startup hooks stay synchronous. Use `IHostedService` or `app.Lifetime` for async work.
+- **Multi-tenancy.** It is an application concern; frameworks such as OrchardCore and ABP cover it.
+- **Per-phase ordering.** One order for every phase keeps the plan readable. If a module needs its
+  middleware elsewhere, split it into two modules.
+- **Modules resolved from DI.** Modules configure the container, so they run before it exists.
+  Use constructor parameters and `Add(instance)` instead.
+- **`DependsOn` and automatic ordering.** The registration order is the order; an explicit list beats a
+  dependency graph you have to solve in your head.
 
-## Project Structure
+## Samples
 
-```
-src/TheAppManager/              → Class library (NuGet package)
-samples/TheAppManager.Sample/   → Sample web app demonstrating usage
-tests/TheAppManager.Tests/      → Unit and integration tests
+- [`samples/TheAppManager.Sample`](samples/TheAppManager.Sample): web app with a named composition,
+  `MapGroup("/api").RequireAuthorization()` and Aspire service defaults.
+- [`samples/TheAppManager.Sample.Console`](samples/TheAppManager.Sample.Console): Spectre.Console app on
+  the Generic Host.
+- [`samples/TheAppManager.Sample.AppHost`](samples/TheAppManager.Sample.AppHost): Aspire AppHost.
+- [`samples/TheAppManager.Sample.Tests`](samples/TheAppManager.Sample.Tests): slice tests and
+  `WebApplicationFactory` tests of the sample.
+
+## Migrating from v2
+
+v3 is a breaking release. See the [v2 to v3 migration guide](docs/migration-v2-to-v3.md) for a mapping of
+every removed or renamed member.
+
+## Project structure
+
+```text
+src/TheAppManager/            → core package
+src/TheAppManager.Testing/    → test host and WebApplicationFactory helpers
+samples/                      → web, console, Aspire and sample tests
+tests/                        → unit, integration, AOT smoke and documentation snippet tests
 ```
 
 <!-- portfolio-techstack:start -->
 
 ## Tech Stack
 
-- **C#**
-- Swashbuckle.AspNetCore
-- Microsoft.AspNetCore.TestHost
-- Microsoft.AspNetCore.Mvc.Testing
+- **C#** / .NET 10
+- ASP.NET Core and the .NET Generic Host
+- Microsoft.AspNetCore.TestHost and Microsoft.AspNetCore.Mvc.Testing (`TheAppManager.Testing` only)
+- Swashbuckle.AspNetCore, Spectre.Console and Aspire (samples)
 - Shouldly
 - xunit
 - xunit.runner.visualstudio
@@ -406,24 +392,17 @@ tests/TheAppManager.Tests/      → Unit and integration tests
 
 ## Roadmap
 
-- [ ] Module dependency declarations (e.g. `DependsOn<T>()`) to enforce ordering automatically
 - [ ] Health-check integration for modules that expose their own health endpoints
-- [ ] Source-generator based auto-discovery to avoid runtime assembly scanning
-- [ ] Additional samples (minimal API-only, Blazor Server) alongside the existing sample app
-- [ ] Configuration validation hooks per module (fail fast on missing settings)
-- [ ] v3: move `AppModuleTestHost` to a separate `TheAppManager.Testing` package so production apps no longer ship `Microsoft.AspNetCore.TestHost` (breaking change)
+- [ ] Source-generator based discovery to replace runtime assembly scanning
+- [ ] More samples (Blazor Server)
 
 See the [open issues](https://github.com/Atypical-Consulting/TheAppManager/issues) for details and to propose new ideas.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes
-4. Run tests (`dotnet test`)
-5. Commit your changes (`git commit -am 'Add my feature'`)
-6. Push to the branch (`git push origin feature/my-feature`)
-7. Open a Pull Request
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md): pull requests target `dev`, and commit
+messages follow Conventional Commits. Every C# block in this README is mirrored by a compiled snippet in
+`tests/TheAppManager.DocsSnippets`, and a test fails when they drift apart.
 
 ## License
 
