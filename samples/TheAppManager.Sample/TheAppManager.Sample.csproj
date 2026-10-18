@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TheAppManager\TheAppManager.csproj" />
+    <ProjectReference Include="..\TheAppManager.Sample.ServiceDefaults\TheAppManager.Sample.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>

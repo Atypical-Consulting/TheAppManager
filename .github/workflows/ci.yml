@@ -27,6 +27,9 @@ jobs:
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
 
+      - name: Run console sample
+        run: dotnet run --project samples/TheAppManager.Sample.Console --no-build --configuration Release
+
       - name: Pack
         run: |
           dotnet pack src/TheAppManager/TheAppManager.csproj --no-build --configuration Release --output ./nupkg

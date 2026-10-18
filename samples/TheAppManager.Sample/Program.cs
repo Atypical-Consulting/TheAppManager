@@ -1,7 +1,12 @@
 using TheAppManager;
-using TheAppManager.Sample.Modules;
+using TheAppManager.Sample;
 
-await AppManager.RunAsync(args, modules => modules
-    .Add<SwaggerModule>()
-    .Add<AuthModule>()
-    .Add<WeatherModule>());
+var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
+builder.AddModules(AppModules.Configure);
+
+var app = builder.Build();
+app.UseModules();
+app.MapDefaultEndpoints();
+app.MapGroup("/api").RequireAuthorization().MapModules();
+app.Run();
