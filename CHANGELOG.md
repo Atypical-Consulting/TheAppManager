@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.2.0](https://github.com/Atypical-Consulting/TheAppManager/compare/v2.1.0...v2.2.0) (2026-10-18)
+
+
+### Features
+
+* add AddIf overload with a builder-aware predicate ([#60](https://github.com/Atypical-Consulting/TheAppManager/issues/60)) ([#69](https://github.com/Atypical-Consulting/TheAppManager/issues/69)) ([46d01c2](https://github.com/Atypical-Consulting/TheAppManager/commit/46d01c2316dcceda3207c766f45795758d995c3e))
+* add Replace to AppModuleTestHost ([#61](https://github.com/Atypical-Consulting/TheAppManager/issues/61)) ([#67](https://github.com/Atypical-Consulting/TheAppManager/issues/67)) ([7e999d2](https://github.com/Atypical-Consulting/TheAppManager/commit/7e999d26eb84a4bcc713ce813d15a2affc6fa8b4))
+
+
+### Bug Fixes
+
+* allow cancelling AppManager.RunAsync ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f))
+* do not register a module twice when scanning its assembly ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f))
+* keep discovering modules when some types fail to load ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f))
+* run every ConfigureBuilder callback instead of only the last ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f)), closes [#62](https://github.com/Atypical-Consulting/TheAppManager/issues/62)
+
+
+### Refactor
+
+* share one module pipeline between AppManagerBuilder and AppModuleTestHost ([#59](https://github.com/Atypical-Consulting/TheAppManager/issues/59)) ([#64](https://github.com/Atypical-Consulting/TheAppManager/issues/64)) ([e7dab9f](https://github.com/Atypical-Consulting/TheAppManager/commit/e7dab9f020b4d94e577b54faceeaa3322ee0a471))
+
 ## [2.1.0](https://github.com/Atypical-Consulting/TheAppManager/compare/v2.0.0...v2.1.0) (2026-10-18)
 
 
