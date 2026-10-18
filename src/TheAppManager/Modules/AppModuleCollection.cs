@@ -109,7 +109,8 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
                 "not nested in a private/protected type, with a public parameterless constructor and without [ExcludeFromDiscovery].");
         }
 
-        foreach (var module in modules)
+        // A replacement already stands in for its target, so a scan that also finds the replacement type does not add it twice.
+        foreach (var module in modules.Where(m => _replacements.Values.All(r => r.GetType() != m.GetType())))
         {
             Add(module);
         }
