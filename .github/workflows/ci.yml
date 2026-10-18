@@ -28,12 +28,14 @@ jobs:
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Pack
-        run: dotnet pack src/TheAppManager/TheAppManager.csproj --no-build --configuration Release --output ./nupkg
+        run: |
+          dotnet pack src/TheAppManager/TheAppManager.csproj --no-build --configuration Release --output ./nupkg
+          dotnet pack src/TheAppManager.Testing/TheAppManager.Testing.csproj --no-build --configuration Release --output ./nupkg
 
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: nuget-package
+          name: nuget-packages
           path: |
             ./nupkg/*.nupkg
             ./nupkg/*.snupkg

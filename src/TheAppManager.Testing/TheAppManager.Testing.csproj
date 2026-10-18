@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TheAppManager.Testing</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>TheAppManager.Testing</PackageId>
+    <Version>2.2.0</Version> <!-- x-release-please-version -->
+    <Authors>phmatray</Authors>
+    <Copyright>Copyright (c) phmatray</Copyright>
+    <Description>A production-faithful, TestServer-backed test host for TheAppManager module compositions.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/phmatray/TheAppManager</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>aspnetcore;modules;testing;testserver;integration-tests</PackageTags>
+    <PackageProjectUrl>https://github.com/phmatray/TheAppManager</PackageProjectUrl>
+    <PackageIcon>logo.png</PackageIcon>
+    <PackageReleaseNotes>https://github.com/Atypical-Consulting/TheAppManager/blob/dev/CHANGELOG.md</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\logo.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TheAppManager\TheAppManager.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -197,7 +197,8 @@ public class AppModuleCollectionTests
     private static async Task<System.Net.HttpStatusCode> ProbeAsync(AppModuleTestHost host)
     {
         await using var started = await host.StartAsync();
-        return (await started.GetTestClient().GetAsync("/probe")).StatusCode;
+        using var client = started.CreateClient();
+        return (await client.GetAsync("/probe")).StatusCode;
     }
 
     [Theory]
@@ -205,19 +206,19 @@ public class AppModuleCollectionTests
     [InlineData("Production", System.Net.HttpStatusCode.NotFound)]
     public async Task AddIf_Predicate_ReadsEnvironment(string env, System.Net.HttpStatusCode expected)
     {
-        var host = new AppModuleTestHost()
-            .ConfigureBuilder(b => b.Environment.EnvironmentName = env)
-            .AddIf<ProbeModule>(b => b.Environment.IsDevelopment());
+        var host = new AppModuleTestHost(
+            m => m.AddIf<ProbeModule>(b => b.Environment.IsDevelopment()),
+            new WebApplicationOptions { EnvironmentName = env });
 
         (await ProbeAsync(host)).ShouldBe(expected);
     }
 
     [Fact]
-    public async Task AddIf_Predicate_SeesConfigFromConfigureBuilder()
+    public async Task AddIf_Predicate_SeesConfigFromArgs()
     {
-        var host = new AppModuleTestHost()
-            .ConfigureBuilder(b => b.Configuration["Probe:On"] = "true")
-            .AddIf<ProbeModule>(b => b.Configuration.GetValue<bool>("Probe:On"));
+        var host = new AppModuleTestHost(
+            m => m.AddIf<ProbeModule>(b => b.Configuration.GetValue<bool>("Probe:On")),
+            new WebApplicationOptions { Args = ["--Probe:On=true"] });
 
         (await ProbeAsync(host)).ShouldBe(System.Net.HttpStatusCode.OK);
     }
@@ -226,7 +227,7 @@ public class AppModuleCollectionTests
     public async Task AddIf_Predicate_RunsOncePerBuild()
     {
         var calls = 0;
-        var host = new AppModuleTestHost().AddIf<ProbeModule>(_ => { calls++; return true; });
+        var host = new AppModuleTestHost(m => m.AddIf<ProbeModule>(_ => { calls++; return true; }));
 
         (await ProbeAsync(host)).ShouldBe(System.Net.HttpStatusCode.OK);
         calls.ShouldBe(1);
