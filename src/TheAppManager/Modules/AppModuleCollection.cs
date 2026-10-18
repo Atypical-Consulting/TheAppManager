@@ -127,6 +127,10 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     /// <param name="builder">The host builder the predicates are evaluated against.</param>
     /// <returns>The applied modules, in registration order.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a module type is registered more than once (predicates included) and its class does not carry
+    /// <see cref="AllowMultipleInstancesAttribute"/>.
+    /// </exception>
     public IReadOnlyList<IAppModule> Resolve(IHostApplicationBuilder builder)
     {
         return ResolveEntries(builder).Where(e => e.Applied).Select(e => e.Module).ToList();
@@ -138,6 +142,17 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     internal IReadOnlyList<(IAppModule Module, bool Applied)> ResolveEntries(IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
+
+        // Identity is checked over every registration, applied or not, so the error does not depend on the environment.
+        var duplicate = _modules
+            .GroupBy(m => m.Module.GetType())
+            .FirstOrDefault(g => g.Count() > 1 && !g.Key.IsDefined(typeof(AllowMultipleInstancesAttribute), inherit: false));
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException(
+                $"Module type '{duplicate.Key.FullName}' is registered more than once. " +
+                "Register it once, or mark the class with [AllowMultipleInstances].");
+        }
 
         return _modules.Select(m => (m.Module, m.When is null || m.When(builder))).ToList();
     }

@@ -17,6 +17,7 @@ public class MultiAssemblyScanningTests
         collection.Add<TestDiscoverableModule>().AddFromAssemblyOf<TestDiscoverableModule>();
 
         collection.Count(m => m.GetType() == typeof(TestDiscoverableModule)).ShouldBe(1);
+        collection.Resolve(Builders.Empty()).Count(m => m.GetType() == typeof(TestDiscoverableModule)).ShouldBe(1);
     }
 
     [Fact]

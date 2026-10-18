@@ -191,6 +191,7 @@ public class AppManagerBuilderTests
         }
     }
 
+    [AllowMultipleInstances]
     private class TrackingModule(string name, List<string> callOrder) : IAppModule
     {
         public void ConfigureServices(IHostApplicationBuilder builder)
@@ -199,6 +200,7 @@ public class AppManagerBuilderTests
         }
     }
 
+    [AllowMultipleInstances]
     private sealed class RecordingModule(string name, List<string> log) : IWebModule
     {
         public void ConfigureServices(IHostApplicationBuilder builder) => log.Add(name + ".Services");

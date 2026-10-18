@@ -8,6 +8,7 @@ namespace TheAppManager.Tests;
 
 public class ReplaceModuleTests
 {
+    [AllowMultipleInstances]
     private class ModuleA : IAppModule;
     private class ModuleB : IAppModule;
     private class ModuleC : IAppModule;
@@ -88,6 +89,7 @@ public class ReplaceModuleTests
         public void ConfigureServices(IHostApplicationBuilder builder) => builder.Services.AddSingleton<FakeService>();
     }
 
+    [AllowMultipleInstances]
     private class OrderedModule(string name, List<string> log) : IAppModule
     {
         public void ConfigureServices(IHostApplicationBuilder builder) => log.Add(name);

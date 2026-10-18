@@ -77,6 +77,7 @@ public class AppModuleTestHostTests
         log.ShouldBe(ExpectedOrder);
     }
 
+    [AllowMultipleInstances]
     private sealed class RecordingModule(string name, List<string> log) : IWebModule
     {
         public void ConfigureServices(IHostApplicationBuilder builder) => log.Add(name + ".Services");

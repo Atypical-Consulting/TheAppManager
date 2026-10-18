@@ -125,6 +125,49 @@ public class AppModuleCollectionTests
     }
 
     [Fact]
+    public void Resolve_DuplicateType_Throws()
+    {
+        var collection = new AppModuleCollection().Add<ModuleA>().Add(new ModuleA());
+
+        var ex = Should.Throw<InvalidOperationException>(() => collection.Resolve(Builders.Empty()));
+
+        ex.Message.ShouldContain(typeof(ModuleA).FullName!);
+    }
+
+    [Fact]
+    public void Resolve_DuplicateType_ThrowsEvenWhenOneIsSkipped()
+    {
+        var collection = new AppModuleCollection().AddIf<ModuleA>(_ => true).AddIf<ModuleA>(_ => false);
+
+        Should.Throw<InvalidOperationException>(() => collection.Resolve(Builders.Empty()))
+            .Message.ShouldContain(typeof(ModuleA).FullName!);
+    }
+
+    [Fact]
+    public void Resolve_AllowMultipleInstances_ReturnsBoth()
+    {
+        var first = new MultiModule();
+        var second = new MultiModule();
+
+        var modules = new AppModuleCollection().Add(first).Add(second).Resolve(Builders.Empty());
+
+        modules.ShouldBe([first, second]);
+    }
+
+    [Fact]
+    public void Resolve_AllowMultipleInstances_IsNotInherited()
+    {
+        var collection = new AppModuleCollection().Add(new DerivedMultiModule()).Add(new DerivedMultiModule());
+
+        Should.Throw<InvalidOperationException>(() => collection.Resolve(Builders.Empty()));
+    }
+
+    [AllowMultipleInstances]
+    private class MultiModule : IAppModule;
+
+    private sealed class DerivedMultiModule : MultiModule;
+
+    [Fact]
     public void FluentChaining_Works()
     {
         var collection = new AppModuleCollection()
