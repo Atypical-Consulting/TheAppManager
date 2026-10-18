@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [dev]
   pull_request:
 
 jobs:
@@ -35,62 +34,3 @@ jobs:
         with:
           name: nuget-package
           path: ./nupkg/*.nupkg
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    # This job only packs and pushes; the GitHub Release is created by the `release` job below,
-    # which declares its own contents: write. id-token is all Trusted Publishing needs here.
-    permissions:
-      id-token: write # request the GitHub OIDC token for NuGet Trusted Publishing
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Build and Pack
-        run: dotnet pack src/TheAppManager/TheAppManager.csproj --configuration Release --output ./nupkg
-
-      # Trusted Publishing: exchanges the OIDC token (needs `id-token: write` above) for a NuGet
-      # key valid ~1 hour, so no long-lived secret is stored. Keep it adjacent to the push so the
-      # key cannot expire in between. Requires a Trusted Publishing policy on nuget.org naming
-      # this repository and `ci.yml`, plus the NUGET_USER secret (the nuget.org profile name).
-      # Deliberately UNGUARDED: this job only runs on a v* tag, so a release is expected. A
-      # missing policy must fail loudly rather than skip and leave the tagged version unpublished
-      # behind a green check.
-      - name: NuGet login (OIDC -> short-lived key)
-        id: nuget-login
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
-        with:
-          user: ${{ secrets.NUGET_USER }}
-
-      - name: Push to NuGet
-        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download NuGet package artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: nuget-package
-          path: ./nupkg
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          files: ./nupkg/*.nupkg
-          generate_release_notes: true
