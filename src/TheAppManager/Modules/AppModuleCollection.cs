@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.Extensions.Hosting;
 
@@ -68,35 +69,49 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     }
 
     /// <summary>
-    /// Scans the assembly containing <typeparamref name="TModule"/> for all
-    /// <see cref="IAppModule"/> implementations and adds them to this collection.
+    /// Scans the assembly containing <typeparamref name="TAnchor"/> for modules and adds them. See
+    /// <see cref="AddFromAssembly"/> for the filter rules. <typeparamref name="TAnchor"/> need not be a module.
     /// </summary>
-    /// <typeparam name="TModule">A type whose assembly will be scanned.</typeparam>
+    /// <typeparam name="TAnchor">A type whose assembly will be scanned.</typeparam>
     /// <returns>This collection for chaining.</returns>
-    public AppModuleCollection AddFromAssemblyOf<TModule>() where TModule : IAppModule
+    /// <exception cref="InvalidOperationException">Thrown when no module is discovered.</exception>
+    [RequiresUnreferencedCode(ModuleDiscovery.RequiresUnreferencedCodeMessage)]
+    public AppModuleCollection AddFromAssemblyOf<TAnchor>()
     {
-        return AddFromAssembly(typeof(TModule).Assembly);
+        return AddFromAssembly(typeof(TAnchor).Assembly);
     }
 
     /// <summary>
-    /// Scans the specified <paramref name="assembly"/> for all <see cref="IAppModule"/>
-    /// implementations and adds them to this collection.
-    /// Module types already present in the collection, or used as a <c>Replace</c> replacement, are skipped.
+    /// Scans <paramref name="assembly"/> and adds, ordered by ordinal <see cref="Type.FullName"/>, every
+    /// non-abstract, non-generic class implementing <see cref="IAppModule"/> that has a public parameterless
+    /// constructor, is not nested in a private/protected type and is not marked
+    /// <see cref="ExcludeFromDiscoveryAttribute"/>. Types without a public parameterless constructor are skipped:
+    /// add them as instances. Discovered modules follow the normal identity rule (a duplicate type throws at
+    /// <see cref="Resolve"/> unless <see cref="AllowMultipleInstancesAttribute"/>) and recorded <c>Replace</c>
+    /// substitutions. If a <c>Replace</c> target type lives in the scanned assembly, mark it
+    /// <see cref="ExcludeFromDiscoveryAttribute"/>, or it is added twice.
     /// </summary>
     /// <param name="assembly">The assembly to scan.</param>
     /// <returns>This collection for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="assembly"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no module is discovered.</exception>
+    [RequiresUnreferencedCode(ModuleDiscovery.RequiresUnreferencedCodeMessage)]
     public AppModuleCollection AddFromAssembly(Assembly assembly)
     {
         ArgumentNullException.ThrowIfNull(assembly);
 
-        foreach (var module in ModuleDiscovery.DiscoverModules(assembly))
+        var modules = ModuleDiscovery.DiscoverModules(assembly);
+        if (modules.Count == 0)
         {
-            var type = module.GetType();
-            if (_modules.All(m => m.Module.GetType() != type) && _replacements.Values.All(r => r.GetType() != type))
-            {
-                _modules.Add((module, null));
-            }
+            throw new InvalidOperationException(
+                $"No modules were discovered in assembly '{assembly.FullName ?? assembly.ToString()}'. " +
+                "A discoverable module is a non-abstract, non-generic class implementing IAppModule, " +
+                "not nested in a private/protected type, with a public parameterless constructor and without [ExcludeFromDiscovery].");
+        }
+
+        foreach (var module in modules)
+        {
+            Add(module);
         }
 
         return this;

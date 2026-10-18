@@ -48,22 +48,21 @@ public sealed class AppManager
 
     /// <summary>
     /// Creates, configures, and runs a web application using the provided modules.
-    /// When no modules are configured, modules are auto-discovered from the entry assembly.
     /// </summary>
     /// <param name="args">Command-line arguments.</param>
     /// <param name="configure">
-    /// An optional callback to register modules. If <c>null</c>, modules are discovered automatically
-    /// from the entry assembly.
+    /// A callback to register modules. Use <c>AddFromAssemblyOf&lt;T&gt;()</c> to scan an assembly explicitly.
     /// </param>
     /// <param name="configureBuilder">
     /// An optional callback to configure the <see cref="WebApplicationBuilder"/> before building.
     /// </param>
     public static void Start(
         string[] args,
-        Action<AppModuleCollection>? configure = null,
+        Action<AppModuleCollection> configure,
         Action<WebApplicationBuilder>? configureBuilder = null)
     {
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(configure);
 
         var modules = ResolveModules(configure);
         var appManager = new AppManagerBuilder(args)
@@ -74,12 +73,10 @@ public sealed class AppManager
 
     /// <summary>
     /// Creates, configures, and runs a web application asynchronously using the provided modules.
-    /// When no modules are configured, modules are auto-discovered from the entry assembly.
     /// </summary>
     /// <param name="args">Command-line arguments.</param>
     /// <param name="configure">
-    /// An optional callback to register modules. If <c>null</c>, modules are discovered automatically
-    /// from the entry assembly.
+    /// A callback to register modules. Use <c>AddFromAssemblyOf&lt;T&gt;()</c> to scan an assembly explicitly.
     /// </param>
     /// <param name="configureBuilder">
     /// An optional callback to configure the <see cref="WebApplicationBuilder"/> before building.
@@ -87,10 +84,11 @@ public sealed class AppManager
     /// <returns>A task that represents the lifetime of the application.</returns>
     public static Task StartAsync(
         string[] args,
-        Action<AppModuleCollection>? configure = null,
+        Action<AppModuleCollection> configure,
         Action<WebApplicationBuilder>? configureBuilder = null)
     {
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(configure);
 
         var modules = ResolveModules(configure);
         var appManager = new AppManagerBuilder(args)
@@ -99,26 +97,10 @@ public sealed class AppManager
         return appManager.RunAsync();
     }
 
-    private static AppModuleCollection ResolveModules(Action<AppModuleCollection>? configure)
+    private static AppModuleCollection ResolveModules(Action<AppModuleCollection> configure)
     {
         var modules = new AppModuleCollection();
-
-        if (configure is not null)
-        {
-            configure(modules);
-        }
-        else
-        {
-            var entryAssembly = Assembly.GetEntryAssembly();
-            if (entryAssembly is not null)
-            {
-                foreach (var module in ModuleDiscovery.DiscoverModules(entryAssembly))
-                {
-                    modules.Add(module);
-                }
-            }
-        }
-
+        configure(modules);
         return modules;
     }
 }
