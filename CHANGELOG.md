@@ -5,16 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
-## [2.1.0] - 2026-03-17
-
-### Added
-
-- `AppManager.StartAsync` static method for async application startup and lifetime management
-- `AppManager.RunAsync` instance method for running the application asynchronously
-- Comprehensive test coverage for async startup APIs
-
 ## [2.0.0] - 2026-03-09
 
 ### Added

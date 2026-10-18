@@ -1,0 +1,84 @@
+name: release-please
+
+# Derives the next version from the Conventional Commits on `dev` (the default branch) and keeps a
+# release PR up to date: CHANGELOG.md, .release-please-manifest.json and the <Version> in
+# TheAppManager.csproj (x-release-please-version marker). Merging that PR tags vX.Y.Z and creates
+# the GitHub Release; the publish job below then pushes the package to NuGet.
+#
+# Publishing lives in THIS workflow, gated on `release_created`: a tag created by release-please with
+# GITHUB_TOKEN does not trigger other workflows. PRs are squash-merged, so the PR title decides the bump.
+
+on:
+  push:
+    branches: [dev]
+  # Manual re-run: refreshes the release PR, or finishes a merged release whose run failed.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  # release-please creates the `autorelease: pending` label it uses to find the merged release PR.
+  issues: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          target-branch: dev
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    name: Pack & publish
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # attach the package to the GitHub Release
+      id-token: write # request the GitHub OIDC token for NuGet Trusted Publishing
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Pack
+        run: dotnet pack src/TheAppManager/TheAppManager.csproj --configuration Release --output ./nupkg
+
+      # Trusted Publishing: exchanges the OIDC token for a NuGet key valid ~1 hour, so no long-lived
+      # secret is stored. Keep it adjacent to the push so the key cannot expire in between. Requires a
+      # Trusted Publishing policy on nuget.org naming this repository and `release-please.yml`, plus
+      # the NUGET_USER secret (the nuget.org profile name). Deliberately unguarded: a missing policy
+      # must fail loudly rather than leave the released version unpublished behind a green check.
+      - name: NuGet login (OIDC -> short-lived key)
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet
+        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Attach package to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" ./nupkg/*.nupkg --clobber

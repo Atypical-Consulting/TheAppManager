@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "1dd56d2fa978e9111f9276473bb79bf712f04f67",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "TheAppManager",
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "generic", "path": "src/TheAppManager/TheAppManager.csproj" }
+      ],
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "perf", "section": "Performance" },
+        { "type": "refactor", "section": "Refactor" },
+        { "type": "revert", "section": "Revert" },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "test", "section": "Testing", "hidden": true },
+        { "type": "build", "section": "Miscellaneous Tasks", "hidden": true },
+        { "type": "ci", "section": "Miscellaneous Tasks", "hidden": true },
+        { "type": "chore", "section": "Miscellaneous Tasks", "hidden": true }
+      ]
+    }
+  }
+}
