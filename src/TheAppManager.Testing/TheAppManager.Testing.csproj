@@ -6,7 +6,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>TheAppManager.Testing</PackageId>
-    <Version>2.2.0</Version> <!-- x-release-please-version -->
+    <Version>3.0.0</Version> <!-- x-release-please-version -->
     <Description>Test helpers for TheAppManager: a production-faithful, TestServer-backed AppModuleTestHost and WebApplicationFactory module replacement.</Description>
     <PackageTags>aspnetcore;modules;testing;testserver;integration-tests</PackageTags>
   </PropertyGroup>
