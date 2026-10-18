@@ -38,6 +38,8 @@ public static class ModuleHostingExtensions
     /// <see cref="ModulePlan"/> as a singleton (logged at Information when the host starts), and runs
     /// <see cref="IAppModule.ConfigureServices"/> for each applied module, in order.
     /// Predicates see the builder as it is when this method is called; later builder changes are not visible to them.
+    /// Before resolving, it applies the <see cref="AppModuleAmendments"/> listed in the builder's configuration
+    /// (test hosts only); they mutate <paramref name="modules"/>, so tests should prefer the delegate overload.
     /// </summary>
     /// <typeparam name="TBuilder">The host builder type (web, worker or console).</typeparam>
     /// <param name="builder">The host builder.</param>
@@ -57,6 +59,7 @@ public static class ModuleHostingExtensions
                 "AddModules can only be called once per builder; compose every module in one AppModuleCollection.");
         }
 
+        AppModuleAmendments.Apply(builder.Configuration, modules);
         var plan = new ModulePlan(modules.ResolveEntries(builder));
         builder.Services.AddSingleton(plan);
         builder.Services.AddHostedService<ModulePlanLogger>();
