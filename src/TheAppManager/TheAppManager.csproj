@@ -8,26 +8,12 @@
     <!-- NuGet Package Metadata -->
     <PackageId>TheAppManager</PackageId>
     <Version>3.0.0</Version> <!-- x-release-please-version -->
-    <Authors>phmatray</Authors>
-    <Copyright>Copyright (c) phmatray</Copyright>
-    <Description>A lightweight, composable module system for ASP.NET Core application startup. Organize services, middleware, and endpoints into independent, reusable modules with auto-discovery support.</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/phmatray/TheAppManager</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageTags>aspnetcore;modules;composable;startup;auto-discovery;minimal-api</PackageTags>
-    <PackageProjectUrl>https://github.com/phmatray/TheAppManager</PackageProjectUrl>
-    <PackageIcon>logo.png</PackageIcon>
-    <PackageReleaseNotes>https://github.com/Atypical-Consulting/TheAppManager/blob/dev/CHANGELOG.md</PackageReleaseNotes>
+    <Description>Compose ASP.NET Core, worker and console startup from ordered, testable modules: AddModules, UseModules and MapModules extensions on the builder you already have. Trimming and Native AOT compatible.</Description>
+    <PackageTags>aspnetcore;modules;composable;startup;minimal-api;generic-host;worker;console;aot</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\logo.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

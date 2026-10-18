@@ -86,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking Changes
 
-- Complete API redesign — v1.x code is not compatible. See README for migration guidance.
+- Complete API redesign — 0.1.0 code (`IAppConfigurationStrategy`, `DefaultAppConfiguration`) is not compatible; no migration guide was published.
 
 ## [0.1.0] - 2024-05-01
 

@@ -4,7 +4,8 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| latest  | :white_check_mark: |
+| 3.x     | :white_check_mark: |
+| < 3.0   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -12,7 +13,7 @@ If you discover a security vulnerability in TheAppManager, please report it resp
 
 **Please do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please use [GitHub's private vulnerability reporting](https://github.com/phmatray/TheAppManager/security/advisories/new) to submit your report, including:
+Instead, please use [GitHub's private vulnerability reporting](https://github.com/Atypical-Consulting/TheAppManager/security/advisories/new) to submit your report, including:
 
 - A description of the vulnerability
 - Steps to reproduce
@@ -27,4 +28,4 @@ Security updates will be released as patch versions on [NuGet](https://www.nuget
 
 ## Scope
 
-This policy covers the TheAppManager NuGet package and its source code hosted at [phmatray/TheAppManager](https://github.com/phmatray/TheAppManager).
+This policy covers the TheAppManager NuGet package and its source code hosted at [Atypical-Consulting/TheAppManager](https://github.com/Atypical-Consulting/TheAppManager).
