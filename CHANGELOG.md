@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.0.0](https://github.com/Atypical-Consulting/TheAppManager/compare/v2.2.0...v3.0.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* AppModuleTestHost moved to the TheAppManager.Testing package (namespace TheAppManager.Testing) and now takes the composition in its constructor; the core package no longer depends on Microsoft.AspNetCore.TestHost.
+* AppManagerBuilder, the AppManager instance type and AppManager.Start/StartAsync are removed; use builder.AddModules(...) + app.UseModules() + app.MapModules(), or AppManager.RunAsync(args, ...).
+* AppManager.Start/StartAsync no longer discover modules from the entry assembly; ModuleDiscovery is internal; an explicit scan that finds no module throws.
+* IAppModule.ConfigureServices now takes IHostApplicationBuilder; ConfigureMiddleware/ConfigureEndpoints moved to IWebModule; all types moved to namespace TheAppManager and public classes are sealed.
+
+### Features
+
+* add host-agnostic AddModules/UseModules/MapModules and AppManager.RunAsync ([#74](https://github.com/Atypical-Consulting/TheAppManager/issues/74)) ([#84](https://github.com/Atypical-Consulting/TheAppManager/issues/84)) ([58340db](https://github.com/Atypical-Consulting/TheAppManager/commit/58340db90a8c526e6b7937512f46e59eedc83ab1))
+* add the TheAppManager.Testing package with a production-faithful test host ([#76](https://github.com/Atypical-Consulting/TheAppManager/issues/76)) ([#86](https://github.com/Atypical-Consulting/TheAppManager/issues/86)) ([16b814a](https://github.com/Atypical-Consulting/TheAppManager/commit/16b814ab9537f5ea1a4bf08aa1f530cab68008a8))
+* add web, Spectre.Console and Aspire samples for v3 ([#79](https://github.com/Atypical-Consulting/TheAppManager/issues/79)) ([#89](https://github.com/Atypical-Consulting/TheAppManager/issues/89)) ([3b7d0fc](https://github.com/Atypical-Consulting/TheAppManager/commit/3b7d0fc1ca8c2e7c36d1bbd31004a78a70f9d9f0))
+* declare and verify Native AOT compatibility ([#77](https://github.com/Atypical-Consulting/TheAppManager/issues/77)) ([#87](https://github.com/Atypical-Consulting/TheAppManager/issues/87)) ([faef6c6](https://github.com/Atypical-Consulting/TheAppManager/commit/faef6c647306baf9673d98da2f1626dd741e84e4))
+* make module discovery explicit, safe and AOT-annotated ([#75](https://github.com/Atypical-Consulting/TheAppManager/issues/75)) ([#85](https://github.com/Atypical-Consulting/TheAppManager/issues/85)) ([80252f2](https://github.com/Atypical-Consulting/TheAppManager/commit/80252f20dc2fc4b4ec03768b0cd4b1b82127b826))
+* replace modules of the real app under WebApplicationFactory ([#78](https://github.com/Atypical-Consulting/TheAppManager/issues/78)) ([#88](https://github.com/Atypical-Consulting/TheAppManager/issues/88)) ([8d15c2f](https://github.com/Atypical-Consulting/TheAppManager/commit/8d15c2f0107fa67cc5afff954db9c15152aa4e31))
+* split IAppModule/IWebModule and make AppModuleCollection the single composition ([#72](https://github.com/Atypical-Consulting/TheAppManager/issues/72)) ([#81](https://github.com/Atypical-Consulting/TheAppManager/issues/81)) ([e7ffd45](https://github.com/Atypical-Consulting/TheAppManager/commit/e7ffd459684fd04db2609251c9889700b78d0199))
+
 ## [2.2.0](https://github.com/Atypical-Consulting/TheAppManager/compare/v2.1.0...v2.2.0) (2026-10-18)
 
 
