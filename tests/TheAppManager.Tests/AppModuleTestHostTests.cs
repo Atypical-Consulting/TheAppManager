@@ -67,6 +67,26 @@ public class AppModuleTestHostTests
         await host.DisposeAsync();
     }
 
+    [Fact]
+    public async Task StartAsync_RunsPhasesInOrderAcrossModules()
+    {
+        var log = new List<string>();
+        await using var host = new AppModuleTestHost();
+        await host.Add(new RecordingModule("A", log)).Add(new RecordingModule("B", log)).StartAsync();
+
+        log.ShouldBe(ExpectedOrder);
+    }
+
+    private sealed class RecordingModule(string name, List<string> log) : IAppModule
+    {
+        public void ConfigureServices(WebApplicationBuilder builder) => log.Add(name + ".Services");
+        public void ConfigureMiddleware(WebApplication app) => log.Add(name + ".Middleware");
+        public void ConfigureEndpoints(IEndpointRouteBuilder endpoints) => log.Add(name + ".Endpoints");
+    }
+
+    private static readonly string[] ExpectedOrder =
+        ["A.Services", "B.Services", "A.Middleware", "B.Middleware", "A.Endpoints", "B.Endpoints"];
+
     private class HelloModule : IAppModule
     {
         public void ConfigureEndpoints(IEndpointRouteBuilder endpoints)

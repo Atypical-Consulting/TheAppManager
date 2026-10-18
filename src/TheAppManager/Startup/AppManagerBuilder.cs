@@ -46,24 +46,7 @@ public class AppManagerBuilder
 
         _configureBuilder?.Invoke(_builder);
 
-        var registeredModules = modules.GetModules();
-
-        foreach (var module in registeredModules)
-        {
-            module.ConfigureServices(_builder);
-        }
-
-        var app = _builder.Build();
-
-        foreach (var module in registeredModules)
-        {
-            module.ConfigureMiddleware(app);
-        }
-
-        foreach (var module in registeredModules)
-        {
-            module.ConfigureEndpoints(app);
-        }
+        var app = ModulePipeline.Build(_builder, modules);
 
         return new AppManager(app);
     }
