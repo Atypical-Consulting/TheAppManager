@@ -14,4 +14,24 @@
          EnablePackageValidation=true + PackageValidationBaselineVersion=3.0.0. -->
   </PropertyGroup>
 
+  <!-- Package metadata shared by every package in src/. Each csproj keeps PackageId, Version, Description and PackageTags. -->
+  <PropertyGroup>
+    <Authors>Atypical Consulting</Authors>
+    <Company>Atypical Consulting</Company>
+    <Copyright>Copyright (c) Atypical Consulting</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Atypical-Consulting/TheAppManager</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/Atypical-Consulting/TheAppManager</PackageProjectUrl>
+    <PackageReleaseNotes>https://github.com/Atypical-Consulting/TheAppManager/blob/dev/CHANGELOG.md</PackageReleaseNotes>
+    <PackageIcon>logo.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Each package ships its own short NUGET.md as README.md; the repo README is too long for nuget.org. -->
+    <None Include="$(MSBuildProjectDirectory)/NUGET.md" Pack="true" PackagePath="README.md" />
+    <None Include="$(MSBuildThisFileDirectory)../logo.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
 </Project>

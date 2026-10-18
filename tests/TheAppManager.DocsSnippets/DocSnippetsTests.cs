@@ -10,6 +10,8 @@ public sealed class DocSnippetsTests
     [Theory]
     [InlineData("README.md")]
     [InlineData("docs/migration-v2-to-v3.md")]
+    [InlineData("src/TheAppManager/NUGET.md")]
+    [InlineData("src/TheAppManager.Testing/NUGET.md")]
     public void Document_snippets_match_compiled_sources(string relativePath)
     {
         var root = RepositoryRoot();
