@@ -15,6 +15,7 @@ public sealed class AppModuleTestHost : IAsyncDisposable
     private readonly WebApplicationOptions? _options;
     private readonly List<Action<IServiceCollection>> _testServices = [];
     private WebApplication? _app;
+    private bool _started;
 
     /// <summary>Creates a host for a prebuilt composition, e.g. the one production hosting uses.</summary>
     /// <param name="modules">The module composition to host.</param>
@@ -45,9 +46,13 @@ public sealed class AppModuleTestHost : IAsyncDisposable
     /// <param name="configure">Edits the service collection.</param>
     /// <returns>This host.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <exception cref="InvalidOperationException"><see cref="StartAsync"/> was already called.</exception>
     public AppModuleTestHost ConfigureTestServices(Action<IServiceCollection> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
+        if (_started)
+            throw new InvalidOperationException("ConfigureTestServices must be called before StartAsync().");
+
         _testServices.Add(configure);
         return this;
     }
@@ -58,12 +63,18 @@ public sealed class AppModuleTestHost : IAsyncDisposable
 
     /// <summary>
     /// Builds and starts the app on a TestServer. The environment defaults to <c>Development</c>, and the
-    /// container validates scopes and the graph on build in every environment.
+    /// container validates scopes and the graph on build in every environment. The host is single-use: if any
+    /// phase after <c>Build</c> fails, the app is disposed and the exception rethrown.
     /// </summary>
     /// <param name="cancellationToken">Cancels the start.</param>
     /// <returns>This host, started.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="StartAsync"/> was already called, even if it failed.</exception>
     public async Task<AppModuleTestHost> StartAsync(CancellationToken cancellationToken = default)
     {
+        if (_started)
+            throw new InvalidOperationException("AppModuleTestHost is single-use; create a new instance.");
+        _started = true;
+
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = _options?.Args,
@@ -106,14 +117,15 @@ public sealed class AppModuleTestHost : IAsyncDisposable
     /// <exception cref="InvalidOperationException">The host has not been started.</exception>
     public HttpClient CreateClient() => StartedApp.GetTestClient();
 
-    /// <summary>Stops and disposes the app, if one was started.</summary>
+    /// <summary>Stops and disposes the app, if one was started. Safe to call more than once.</summary>
     public async ValueTask DisposeAsync()
     {
-        if (_app is not null)
-        {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
-        }
+        if (_app is not { } app)
+            return;
+
+        _app = null;
+        await app.StopAsync();
+        await app.DisposeAsync();
     }
 
     private WebApplication StartedApp => _app ?? throw new InvalidOperationException("Call StartAsync() first.");

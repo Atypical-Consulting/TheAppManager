@@ -52,15 +52,53 @@ public class AppModuleTestHostTests
     }
 
     [Fact]
-    public async Task DisposeAsync_DisposesTheServiceProvider()
+    public async Task DisposeAsync_DisposesTheServiceProvider_AndIsIdempotent()
     {
         var host = new AppModuleTestHost(m => m.Add<ServiceModule>());
         await host.StartAsync().WaitAsync(Timeout);
         var services = host.Services;
 
         await host.DisposeAsync();
+        await host.DisposeAsync();
 
         Should.Throw<ObjectDisposedException>(() => services.GetRequiredService<TestService>());
+        Should.Throw<InvalidOperationException>(() => host.Services);
+    }
+
+    [Fact]
+    public async Task StartAsync_Twice_Throws()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
+        await host.StartAsync().WaitAsync(Timeout);
+
+        await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync().WaitAsync(Timeout));
+    }
+
+    [Fact]
+    public async Task StartAsync_AfterAFailedStart_Throws()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add(new FailingMiddlewareModule()));
+        await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync().WaitAsync(Timeout));
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync().WaitAsync(Timeout));
+        ex.Message.ShouldContain("single-use");
+    }
+
+    [Fact]
+    public async Task ConfigureTestServices_AfterStart_Throws()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
+        await host.StartAsync().WaitAsync(Timeout);
+
+        Should.Throw<InvalidOperationException>(() => host.ConfigureTestServices(_ => { }));
+    }
+
+    [Fact]
+    public async Task Services_BeforeStart_Throws()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
+
+        Should.Throw<InvalidOperationException>(() => host.Services);
     }
 
     [Fact]
