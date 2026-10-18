@@ -49,7 +49,7 @@ jobs:
       contents: write # attach the package to the GitHub Release
       id-token: write # request the GitHub OIDC token for NuGet Trusted Publishing
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
