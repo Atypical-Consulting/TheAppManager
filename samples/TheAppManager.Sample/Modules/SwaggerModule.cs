@@ -1,11 +1,7 @@
-using TheAppManager;
-
 namespace TheAppManager.Sample.Modules;
 
-/// <summary>
-/// Adds Swagger/OpenAPI support to the application.
-/// </summary>
-public class SwaggerModule : IWebModule
+/// <summary>Adds Swagger/OpenAPI support (registered with AddIf in Development only).</summary>
+public sealed class SwaggerModule : IWebModule
 {
     public void ConfigureServices(IHostApplicationBuilder builder)
     {
@@ -15,10 +11,7 @@ public class SwaggerModule : IWebModule
 
     public void ConfigureMiddleware(WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
+        app.UseSwagger();
+        app.UseSwaggerUI();
     }
 }

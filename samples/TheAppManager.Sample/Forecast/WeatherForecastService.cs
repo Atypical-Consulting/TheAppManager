@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Options;
+
 namespace TheAppManager.Sample.Forecast;
 
-public class WeatherForecastService
+public class WeatherForecastService(IOptions<WeatherOptions> options)
 {
     private static readonly string[] Summaries =
     [
@@ -8,10 +10,10 @@ public class WeatherForecastService
         "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
     ];
 
-    public IEnumerable<WeatherForecast> GetForecasts()
+    public WeatherForecast[] GetForecasts()
     {
         return Enumerable
-            .Range(1, 5)
+            .Range(1, options.Value.Days)
             .Select(index => new WeatherForecast(
                 DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
                 Random.Shared.Next(-20, 55),

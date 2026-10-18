@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+
 namespace TheAppManager.Sample.Forecast;
 
 public static class WeatherForecastEndpoints
@@ -8,15 +10,6 @@ public static class WeatherForecastEndpoints
             .WithName("GetWeatherForecast");
     }
 
-    private static IResult Handler(WeatherForecastService service)
-    {
-        try
-        {
-            return Results.Ok(service.GetForecasts());
-        }
-        catch (Exception e)
-        {
-            return Results.Problem(e.StackTrace, e.Message, StatusCodes.Status500InternalServerError);
-        }
-    }
+    private static Ok<WeatherForecast[]> Handler(WeatherForecastService service)
+        => TypedResults.Ok(service.GetForecasts());
 }
