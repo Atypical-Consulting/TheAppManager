@@ -82,9 +82,20 @@ public class ReplaceModuleTests
     public void Replace_SurvivesLaterScan()
     {
         var modules = new AppModuleCollection()
-            .Add<TestDiscoverableModule>()
             .Replace<TestDiscoverableModule, ReplacementModule>()
-            .AddFromAssemblyOf<TestDiscoverableModule>()
+            .AddFromAssembly(new StubAssembly(typeof(TestDiscoverableModule)))
+            .Resolve(Builders.Empty());
+
+        modules.ShouldNotContain(m => m is TestDiscoverableModule);
+        modules.Count(m => m is ReplacementModule).ShouldBe(1);
+    }
+
+    [Fact]
+    public void Replace_LaterScanFindingTheReplacementType_DoesNotDuplicateIt()
+    {
+        var modules = new AppModuleCollection()
+            .Replace<TestDiscoverableModule, ReplacementModule>()
+            .AddFromAssembly(new StubAssembly(typeof(TestDiscoverableModule), typeof(ReplacementModule)))
             .Resolve(Builders.Empty());
 
         modules.ShouldNotContain(m => m is TestDiscoverableModule);
