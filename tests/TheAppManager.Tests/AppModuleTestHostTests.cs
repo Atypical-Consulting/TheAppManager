@@ -75,6 +75,94 @@ public class AppModuleTestHostTests
         Should.Throw<InvalidOperationException>(() => host.CreateClient());
     }
 
+    [Fact]
+    public async Task Environment_DefaultsToDevelopment()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
+        await host.StartAsync().WaitAsync(Timeout);
+
+        host.Services.GetRequiredService<IHostEnvironment>().EnvironmentName.ShouldBe(Environments.Development);
+    }
+
+    [Fact]
+    public async Task Options_EnvironmentAndApplicationName_AreHonoured()
+    {
+        await using var host = new AppModuleTestHost(
+            m => m.Add<HelloModule>(),
+            new WebApplicationOptions { EnvironmentName = "Staging", ApplicationName = "X" });
+        await host.StartAsync().WaitAsync(Timeout);
+
+        var env = host.Services.GetRequiredService<IHostEnvironment>();
+        env.EnvironmentName.ShouldBe("Staging");
+        env.ApplicationName.ShouldBe("X");
+    }
+
+    [Fact]
+    public async Task ScopedService_FromTheRoot_ThrowsEvenInProduction()
+    {
+        await using var host = new AppModuleTestHost(
+            m => m.Add<ScopedModule>(),
+            new WebApplicationOptions { EnvironmentName = Environments.Production });
+        await host.StartAsync().WaitAsync(Timeout);
+
+        Should.Throw<InvalidOperationException>(() => host.Services.GetRequiredService<ScopedThing>());
+    }
+
+    [Fact]
+    public async Task CaptiveDependency_FailsStart()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<CaptiveModule>());
+
+        await Should.ThrowAsync<AggregateException>(() => host.StartAsync().WaitAsync(Timeout));
+    }
+
+    [Fact]
+    public async Task ConfigureTestServices_RunsAfterTheModules()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<ClockModule>())
+            .ConfigureTestServices(s => s.AddSingleton<IClock, FakeClock>());
+        await host.StartAsync().WaitAsync(Timeout);
+
+        host.Services.GetRequiredService<IClock>().ShouldBeOfType<FakeClock>();
+    }
+
+    [Fact]
+    public async Task ConfigureTestServices_Null_Throws()
+    {
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
+
+        Should.Throw<ArgumentNullException>(() => host.ConfigureTestServices(null!));
+    }
+
+    private sealed class ScopedThing;
+
+    private sealed class ScopedModule : IAppModule
+    {
+        public void ConfigureServices(IHostApplicationBuilder builder) => builder.Services.AddScoped<ScopedThing>();
+    }
+
+    private sealed class Captive(ScopedThing thing)
+    {
+        public ScopedThing Thing { get; } = thing;
+    }
+
+    private sealed class CaptiveModule : IAppModule
+    {
+        public void ConfigureServices(IHostApplicationBuilder builder) =>
+            builder.Services.AddScoped<ScopedThing>().AddSingleton<Captive>();
+    }
+
+    private interface IClock;
+
+    private sealed class RealClock : IClock;
+
+    private sealed class FakeClock : IClock;
+
+    private sealed class ClockModule : IAppModule
+    {
+        public void ConfigureServices(IHostApplicationBuilder builder) => builder.Services.AddSingleton<IClock, RealClock>();
+    }
+
     private sealed class FailingMiddlewareModule : IWebModule
     {
         public DisposableProbe? Probe { get; private set; }

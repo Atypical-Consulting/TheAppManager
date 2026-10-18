@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace TheAppManager.Testing;
 
@@ -11,6 +13,7 @@ public sealed class AppModuleTestHost : IAsyncDisposable
 {
     private readonly Action<WebApplicationBuilder> _addModules;
     private readonly WebApplicationOptions? _options;
+    private readonly List<Action<IServiceCollection>> _testServices = [];
     private WebApplication? _app;
 
     /// <summary>Creates a host for a prebuilt composition, e.g. the one production hosting uses.</summary>
@@ -35,18 +38,52 @@ public sealed class AppModuleTestHost : IAsyncDisposable
         _options = options;
     }
 
+    /// <summary>
+    /// Registers a service override applied after every module's <c>ConfigureServices</c>, before <c>Build</c>,
+    /// so a fake registered here wins over the module's registration.
+    /// </summary>
+    /// <param name="configure">Edits the service collection.</param>
+    /// <returns>This host.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    public AppModuleTestHost ConfigureTestServices(Action<IServiceCollection> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        _testServices.Add(configure);
+        return this;
+    }
+
     /// <summary>The started app's root service provider.</summary>
     /// <exception cref="InvalidOperationException">The host has not been started.</exception>
     public IServiceProvider Services => StartedApp.Services;
 
-    /// <summary>Builds and starts the app on a TestServer.</summary>
+    /// <summary>
+    /// Builds and starts the app on a TestServer. The environment defaults to <c>Development</c>, and the
+    /// container validates scopes and the graph on build in every environment.
+    /// </summary>
     /// <param name="cancellationToken">Cancels the start.</param>
     /// <returns>This host, started.</returns>
     public async Task<AppModuleTestHost> StartAsync(CancellationToken cancellationToken = default)
     {
-        var builder = WebApplication.CreateBuilder(_options ?? new WebApplicationOptions());
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = _options?.Args,
+            ApplicationName = _options?.ApplicationName,
+            ContentRootPath = _options?.ContentRootPath,
+            WebRootPath = _options?.WebRootPath,
+            EnvironmentName = _options?.EnvironmentName ?? Environments.Development,
+        });
         builder.WebHost.UseTestServer();
+        builder.Host.UseDefaultServiceProvider(o =>
+        {
+            o.ValidateScopes = true;
+            o.ValidateOnBuild = true;
+        });
         _addModules(builder);
+
+        foreach (var configure in _testServices)
+        {
+            configure(builder.Services);
+        }
 
         var app = builder.Build();
         try
