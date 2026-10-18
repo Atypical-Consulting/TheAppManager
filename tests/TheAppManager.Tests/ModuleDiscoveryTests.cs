@@ -1,63 +1,156 @@
 using System.Reflection;
 
-namespace TheAppManager.Tests;
-
-public class ModuleDiscoveryTests
+namespace TheAppManager.Tests
 {
-    [Fact]
-    public void DiscoverModules_WhenSomeTypesFailToLoad_ReturnsLoadableModules()
+    /// <summary>An <see cref="Assembly"/> whose type list is fully controlled by the test.</summary>
+    internal sealed class StubAssembly(params Type[] types) : Assembly
     {
-        var modules = ModuleDiscovery.DiscoverModules(new PartiallyLoadableAssembly()).ToList();
+        public override string FullName => "Stub.Assembly";
 
-        modules.Count.ShouldBe(1);
-        modules[0].ShouldBeOfType<TestDiscoverableModule>();
+        public override Type[] GetTypes() => types;
     }
 
-    private sealed class PartiallyLoadableAssembly : Assembly
+    public class ModuleDiscoveryTests
     {
-        public override Type[] GetTypes() =>
-            throw new ReflectionTypeLoadException([typeof(TestDiscoverableModule), null], [null, new FileNotFoundException()]);
+        [Fact]
+        public void DiscoverModules_WhenSomeTypesFailToLoad_ReturnsLoadableModules()
+        {
+            var modules = ModuleDiscovery.DiscoverModules(new PartiallyLoadableAssembly());
+
+            modules.ShouldHaveSingleItem().ShouldBeOfType<TestDiscoverableModule>();
+        }
+
+        private sealed class PartiallyLoadableAssembly : Assembly
+        {
+            public override Type[] GetTypes() =>
+                throw new ReflectionTypeLoadException([typeof(TestDiscoverableModule), null], [null, new FileNotFoundException()]);
+        }
+
+        [Fact]
+        public void DiscoverModules_KeepsOnlyReachableConcreteModules()
+        {
+            var modules = ModuleDiscovery.DiscoverModules(new StubAssembly(Fixtures.All));
+
+            modules.Select(m => m.GetType()).ShouldBe(
+                [typeof(Fixtures.ProtectedInternalNested), typeof(InternalModule), typeof(PublicModule)],
+                ignoreOrder: true);
+        }
+
+        [Fact]
+        public void DiscoverModules_DoesNotRunConstructorsOfFilteredTypes()
+        {
+            Fixtures.FilteredConstructions = 0;
+
+            ModuleDiscovery.DiscoverModules(new StubAssembly(Fixtures.All));
+
+            Fixtures.FilteredConstructions.ShouldBe(0);
+        }
+
+        [Fact]
+        public void DiscoverModules_SortsByFullName()
+        {
+            var modules = ModuleDiscovery.DiscoverModules(new StubAssembly(typeof(B.Zeta.Alpha), typeof(A.Zeta.Beta)));
+
+            modules.Select(m => m.GetType()).ShouldBe([typeof(A.Zeta.Beta), typeof(B.Zeta.Alpha)]);
+        }
+
+        [Fact]
+        public void DiscoverModules_SubclassOfExcludedModule_IsDiscoverable()
+        {
+            var modules = ModuleDiscovery.DiscoverModules(new StubAssembly(typeof(ExcludedModule), typeof(ExcludedChild)));
+
+            modules.ShouldHaveSingleItem().ShouldBeOfType<ExcludedChild>();
+        }
+
+        [Fact]
+        public void DiscoverModules_ClosedGenericSubclass_IsDiscovered()
+        {
+            var modules = ModuleDiscovery.DiscoverModules(new StubAssembly(typeof(Fixtures.GenericModule<>), typeof(Fixtures.IntModule)));
+
+            modules.ShouldHaveSingleItem().ShouldBeOfType<Fixtures.IntModule>();
+        }
+
+        [Fact]
+        public void DiscoverModules_ThrowsOnNullAssembly()
+        {
+            Should.Throw<ArgumentNullException>(() => ModuleDiscovery.DiscoverModules(null!));
+        }
+
+        [Fact]
+        public void ModuleDiscovery_IsNotPublic()
+        {
+            typeof(ModuleDiscovery).IsPublic.ShouldBeFalse();
+        }
+
+        internal class InternalModule : IAppModule;
+
+        public class PublicModule : IAppModule;
+
+        public class ExcludedChild : ExcludedModule;
     }
 
-    [Fact]
-    public void DiscoverModules_FindsConcreteModules()
+    [ExcludeFromDiscovery]
+    public class ExcludedModule : IAppModule
     {
-        var modules = ModuleDiscovery.DiscoverModules(Assembly.GetExecutingAssembly()).ToList();
-
-        modules.ShouldContain(m => m.GetType() == typeof(DiscoverableModule));
+        public ExcludedModule() => Fixtures.FilteredConstructions++;
     }
 
-    [Fact]
-    public void DiscoverModules_ExcludesAbstractModules()
+    public class Fixtures
     {
-        var modules = ModuleDiscovery.DiscoverModules(Assembly.GetExecutingAssembly()).ToList();
+        public static int FilteredConstructions;
 
-        modules.ShouldNotContain(m => m.GetType() == typeof(AbstractModule));
+        public static Type[] All =>
+        [
+            typeof(GenericModule<>), typeof(PrivateNested), typeof(ProtectedNested), typeof(PrivateProtectedNested),
+            typeof(ProtectedInternalNested), typeof(PrivateOuter.InnerPublic), typeof(AbstractModule),
+            typeof(CtorArgsModule), typeof(ExcludedModule),
+            typeof(ModuleDiscoveryTests.InternalModule), typeof(ModuleDiscoveryTests.PublicModule),
+        ];
+
+        public class GenericModule<T> : IAppModule;
+
+        public class IntModule : GenericModule<int>;
+
+        public abstract class AbstractModule : IAppModule;
+
+        public class CtorArgsModule(string name) : IAppModule
+        {
+            public string Name => name;
+        }
+
+        protected internal class ProtectedInternalNested : IAppModule;
+
+        private class PrivateNested : IAppModule
+        {
+            public PrivateNested() => FilteredConstructions++;
+        }
+
+        protected class ProtectedNested : IAppModule
+        {
+            public ProtectedNested() => FilteredConstructions++;
+        }
+
+        private protected class PrivateProtectedNested : IAppModule
+        {
+            public PrivateProtectedNested() => FilteredConstructions++;
+        }
+
+        private class PrivateOuter
+        {
+            public class InnerPublic : IAppModule
+            {
+                public InnerPublic() => FilteredConstructions++;
+            }
+        }
     }
+}
 
-    [Fact]
-    public void DiscoverModules_ExcludesModulesWithoutParameterlessConstructor()
-    {
-        var modules = ModuleDiscovery.DiscoverModules(Assembly.GetExecutingAssembly()).ToList();
+namespace A.Zeta
+{
+    public class Beta : TheAppManager.IAppModule;
+}
 
-        modules.ShouldNotContain(m => m.GetType() == typeof(ModuleWithConstructorArgs));
-    }
-
-    [Fact]
-    public void DiscoverModules_ThrowsOnNullAssembly()
-    {
-        Should.Throw<ArgumentNullException>(() => ModuleDiscovery.DiscoverModules(null!).ToList());
-    }
-
-    // Discoverable — concrete with parameterless constructor
-    public class DiscoverableModule : IAppModule;
-
-    // Should be excluded — abstract
-    public abstract class AbstractModule : IAppModule;
-
-    // Should be excluded — no parameterless constructor
-    public class ModuleWithConstructorArgs(string name) : IAppModule
-    {
-        public string Name => name;
-    }
+namespace B.Zeta
+{
+    public class Alpha : TheAppManager.IAppModule;
 }

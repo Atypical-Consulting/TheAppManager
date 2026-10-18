@@ -23,8 +23,7 @@
   - [A Minimal Module](#a-minimal-module)
   - [Module Ordering](#module-ordering)
   - [Conditional Modules](#conditional-modules)
-- [Auto-Discovery](#auto-discovery)
-- [Multi-Assembly Scanning](#multi-assembly-scanning)
+- [Assembly Scanning (opt-in)](#assembly-scanning-opt-in)
 - [Testing](#testing)
   - [Integration Testing with AppModuleTestHost](#integration-testing-with-appmoduletesthost)
   - [Replacing Modules in Tests](#replacing-modules-in-tests)
@@ -76,8 +75,7 @@ As ASP.NET Core applications grow, `Program.cs` accumulates unrelated service re
 
 - **Composable modules** — encapsulate services, middleware, and endpoints into independent `IAppModule` implementations
 - **Registration-order execution** — modules are applied in the order you add them, no magic priority numbers
-- **Auto-discovery** — automatically find and register all `IAppModule` implementations in your assembly
-- **Multi-assembly scanning** — discover modules from referenced assemblies with `AddFromAssemblyOf<T>()`
+- **Opt-in assembly scanning** — discover modules explicitly with `AddFromAssemblyOf<T>()` / `AddFromAssembly(assembly)`
 - **Conditional registration** — add modules only when conditions are met with `AddIf<T>(bool)`
 - **Module replacement** — swap modules for test doubles with `Replace<TOld, TNew>()`
 - **Test host** — `AppModuleTestHost` builds a TestServer from modules for integration testing
@@ -227,36 +225,33 @@ AppManager.Start(args, modules => modules
 
 A module swapped in with `Replace<TOld, TNew>()` keeps the predicate of the module it replaces.
 
-## Auto-Discovery
+## Assembly Scanning (opt-in)
 
-When you call `AppManager.Start(args)` without a configure callback, TheAppManager scans the entry assembly for all concrete classes implementing `IAppModule` with a parameterless constructor and registers them automatically (sorted alphabetically by type name for deterministic ordering).
-
-This is convenient for applications where module ordering doesn't matter, or where you're fine with alphabetical ordering.
-
-```csharp
-// Discovers and registers all IAppModule implementations in the entry assembly
-AppManager.Start(args);
-```
-
-For order-sensitive applications, prefer explicit registration.
-
-## Multi-Assembly Scanning
-
-When your modules live in referenced libraries, scan their assemblies explicitly:
+Nothing is discovered implicitly: `AppManager.Start(args, configure)` only registers what you add. To register every module of an assembly, scan it explicitly:
 
 ```csharp
 AppManager.Start(args, modules =>
 {
-    // Scan the assembly containing SwaggerModule for all modules
-    modules.AddFromAssemblyOf<SwaggerModule>();
+    // Scan the assembly containing Program (the anchor type need not be a module)
+    modules.AddFromAssemblyOf<Program>();
 
-    // Or scan a specific assembly
+    // Or scan a specific assembly, e.g. a referenced library
     modules.AddFromAssembly(typeof(SomeLibraryModule).Assembly);
 
     // Mix with explicit registration
     modules.Add<MyAppModule>();
 });
 ```
+
+What a scan picks up:
+
+- Non-abstract, non-generic classes implementing `IAppModule` with a public parameterless constructor. `internal` modules are included; classes nested in a `private`, `protected` or `private protected` type are not. Modules that need constructor arguments are skipped: add them as instances.
+- Modules are added sorted by ordinal `Type.FullName`, so order does not depend on reflection order. For order-sensitive applications, prefer explicit `Add<T>()`.
+- Mark a module with `[ExcludeFromDiscovery]` to keep it out of scans; it can still be added explicitly. The attribute is not inherited.
+- A scan that finds no module throws `InvalidOperationException` naming the assembly.
+- Scanned modules follow the same identity rule as `Add`: a type registered twice (for example `Add<X>()` plus a scan that finds `X`) throws at resolve time unless the class has `[AllowMultipleInstances]`. Recorded `Replace` substitutions apply to scanned modules too. If the replacement type lives in the scanned assembly, mark it `[ExcludeFromDiscovery]`, or it is added twice.
+
+Scanning uses reflection and is annotated `[RequiresUnreferencedCode]`: it is not trim- or Native AOT-safe. Prefer `Add<T>()` in trimmed or AOT apps.
 
 ## Testing
 

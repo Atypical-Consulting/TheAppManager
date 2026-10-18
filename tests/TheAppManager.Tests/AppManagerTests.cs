@@ -8,13 +8,19 @@ public class AppManagerTests
     [Fact]
     public void Start_ThrowsOnNullArgs()
     {
-        Should.Throw<ArgumentNullException>(() => AppManager.Start(null!));
+        Should.Throw<ArgumentNullException>(() => AppManager.Start(null!, _ => { }));
+    }
+
+    [Fact]
+    public async Task StartAsync_ThrowsOnNullConfigure()
+    {
+        await Should.ThrowAsync<ArgumentNullException>(() => AppManager.StartAsync([], null!));
     }
 
     [Fact]
     public async Task StartAsync_ThrowsOnNullArgs()
     {
-        await Should.ThrowAsync<ArgumentNullException>(() => AppManager.StartAsync(null!));
+        await Should.ThrowAsync<ArgumentNullException>(() => AppManager.StartAsync(null!, _ => { }));
     }
 
     [Fact]
