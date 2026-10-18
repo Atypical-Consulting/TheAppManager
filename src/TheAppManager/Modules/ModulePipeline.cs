@@ -12,7 +12,7 @@ internal static class ModulePipeline
     /// </summary>
     internal static WebApplication Build(WebApplicationBuilder builder, AppModuleCollection modules)
     {
-        var registered = modules.GetModules();
+        var registered = modules.GetModules(builder);
 
         foreach (var module in registered)
         {

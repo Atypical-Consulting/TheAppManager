@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using TheAppManager.Modules;
@@ -125,5 +126,28 @@ public class ReplaceModuleTests
     {
         Should.Throw<InvalidOperationException>(
             () => new AppModuleTestHost().Replace<ModuleB, ReplacementModule>());
+    }
+
+    private sealed class RealProbeModule : IAppModule
+    {
+        public void ConfigureEndpoints(IEndpointRouteBuilder app) => app.MapGet("/real", () => "real");
+    }
+
+    private sealed class FakeProbeModule : IAppModule
+    {
+        public void ConfigureEndpoints(IEndpointRouteBuilder app) => app.MapGet("/fake", () => "fake");
+    }
+
+    [Theory]
+    [InlineData(false, System.Net.HttpStatusCode.NotFound)]
+    [InlineData(true, System.Net.HttpStatusCode.OK)]
+    public async Task Replace_KeepsTheCondition(bool on, System.Net.HttpStatusCode expected)
+    {
+        await using var host = await new AppModuleTestHost()
+            .AddIf<RealProbeModule>(_ => on)
+            .Replace<RealProbeModule, FakeProbeModule>()
+            .StartAsync();
+
+        (await host.GetTestClient().GetAsync("/fake")).StatusCode.ShouldBe(expected);
     }
 }

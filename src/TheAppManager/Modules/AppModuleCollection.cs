@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using Microsoft.AspNetCore.Builder;
 
 namespace TheAppManager.Modules;
 
@@ -8,7 +9,7 @@ namespace TheAppManager.Modules;
 /// </summary>
 public class AppModuleCollection : IEnumerable<IAppModule>
 {
-    private readonly List<IAppModule> _modules = [];
+    private readonly List<(IAppModule Module, Func<WebApplicationBuilder, bool>? When)> _modules = [];
 
     /// <summary>
     /// Adds a module by type. The module must have a parameterless constructor.
@@ -17,7 +18,7 @@ public class AppModuleCollection : IEnumerable<IAppModule>
     /// <returns>This collection for chaining.</returns>
     public AppModuleCollection Add<TModule>() where TModule : IAppModule, new()
     {
-        _modules.Add(new TModule());
+        _modules.Add((new TModule(), null));
         return this;
     }
 
@@ -30,7 +31,7 @@ public class AppModuleCollection : IEnumerable<IAppModule>
     public AppModuleCollection Add(IAppModule module)
     {
         ArgumentNullException.ThrowIfNull(module);
-        _modules.Add(module);
+        _modules.Add((module, null));
         return this;
     }
 
@@ -44,9 +45,24 @@ public class AppModuleCollection : IEnumerable<IAppModule>
     {
         if (condition)
         {
-            _modules.Add(new TModule());
+            _modules.Add((new TModule(), null));
         }
 
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a module by type, applied only when <paramref name="predicate"/> returns true.
+    /// The predicate runs once per build, after the builder callbacks, against the real <see cref="WebApplicationBuilder"/>.
+    /// </summary>
+    /// <typeparam name="TModule">The module type to add.</typeparam>
+    /// <param name="predicate">Decides, from the builder (environment, configuration), whether the module is applied.</param>
+    /// <returns>This collection for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="predicate"/> is null.</exception>
+    public AppModuleCollection AddIf<TModule>(Func<WebApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        _modules.Add((new TModule(), predicate));
         return this;
     }
 
@@ -75,9 +91,9 @@ public class AppModuleCollection : IEnumerable<IAppModule>
 
         foreach (var module in ModuleDiscovery.DiscoverModules(assembly))
         {
-            if (_modules.All(m => m.GetType() != module.GetType()))
+            if (_modules.All(m => m.Module.GetType() != module.GetType()))
             {
-                _modules.Add(module);
+                _modules.Add((module, null));
             }
         }
 
@@ -96,11 +112,11 @@ public class AppModuleCollection : IEnumerable<IAppModule>
         where TOld : IAppModule
         where TNew : IAppModule, new()
     {
-        var index = _modules.FindIndex(m => m is TOld);
+        var index = _modules.FindIndex(m => m.Module is TOld);
         if (index < 0)
             throw new InvalidOperationException($"No module of type {typeof(TOld).Name} found to replace.");
 
-        _modules[index] = new TNew();
+        _modules[index] = (new TNew(), _modules[index].When);
         return this;
     }
 
@@ -109,11 +125,19 @@ public class AppModuleCollection : IEnumerable<IAppModule>
     /// </summary>
     internal IReadOnlyList<IAppModule> GetModules()
     {
-        return _modules;
+        return _modules.Select(m => m.Module).ToList();
+    }
+
+    /// <summary>
+    /// Returns, in registration order, the modules whose predicate is absent or true for <paramref name="builder"/>.
+    /// </summary>
+    internal IReadOnlyList<IAppModule> GetModules(WebApplicationBuilder builder)
+    {
+        return _modules.Where(m => m.When is null || m.When(builder)).Select(m => m.Module).ToList();
     }
 
     /// <inheritdoc />
-    public IEnumerator<IAppModule> GetEnumerator() => _modules.GetEnumerator();
+    public IEnumerator<IAppModule> GetEnumerator() => _modules.Select(m => m.Module).GetEnumerator();
 
     /// <inheritdoc />
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

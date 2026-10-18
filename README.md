@@ -218,6 +218,15 @@ AppManager.Start(args, modules =>
 });
 ```
 
+The `configure` callback runs before the `WebApplicationBuilder` exists. To decide from the environment or configuration, pass a predicate; it runs once, when the app is built, against the real builder (after any `ConfigureBuilder` callbacks):
+
+```csharp
+AppManager.Start(args, modules => modules
+    .AddIf<SwaggerModule>(b => b.Environment.IsDevelopment()));
+```
+
+A module swapped in with `Replace<TOld, TNew>()` keeps the predicate of the module it replaces.
+
 ## Auto-Discovery
 
 When you call `AppManager.Start(args)` without a configure callback, TheAppManager scans the entry assembly for all concrete classes implementing `IAppModule` with a parameterless constructor and registers them automatically (sorted alphabetically by type name for deterministic ordering).
