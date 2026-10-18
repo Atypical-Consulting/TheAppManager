@@ -84,7 +84,7 @@ As ASP.NET Core applications grow, `Program.cs` accumulates unrelated service re
 - **Fluent API** — chain module registrations for readable startup code
 - **Async support** — run applications asynchronously with `StartAsync` and `RunAsync`
 - **Builder hook** — customize `WebApplicationBuilder` before modules are applied
-- **Zero external dependencies** — built solely on `Microsoft.AspNetCore.App` framework reference
+- **Minimal dependencies** — built on the `Microsoft.AspNetCore.App` framework reference, plus `Microsoft.AspNetCore.TestHost`, which backs `AppModuleTestHost` and ships with the package
 
 ## Installation
 
@@ -385,6 +385,7 @@ tests/TheAppManager.Tests/      → Unit and integration tests
 - [ ] Source-generator based auto-discovery to avoid runtime assembly scanning
 - [ ] Additional samples (minimal API-only, Blazor Server) alongside the existing sample app
 - [ ] Configuration validation hooks per module (fail fast on missing settings)
+- [ ] v3: move `AppModuleTestHost` to a separate `TheAppManager.Testing` package so production apps no longer ship `Microsoft.AspNetCore.TestHost` (breaking change)
 
 See the [open issues](https://github.com/Atypical-Consulting/TheAppManager/issues) for details and to propose new ideas.
 
