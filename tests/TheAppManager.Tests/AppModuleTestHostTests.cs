@@ -14,10 +14,10 @@ public class AppModuleTestHostTests
     [Fact]
     public async Task StartAsync_WithModule_EndpointResponds()
     {
-        await using var host = new AppModuleTestHost();
-        await host.Add<HelloModule>().StartAsync().WaitAsync(Timeout);
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
+        await host.StartAsync().WaitAsync(Timeout);
 
-        var client = host.GetTestClient();
+        using var client = host.CreateClient();
         var response = await client.GetAsync("/hello").WaitAsync(Timeout);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -26,61 +26,53 @@ public class AppModuleTestHostTests
     }
 
     [Fact]
-    public async Task GetRequiredService_ReturnsRegisteredService()
+    public async Task Services_ResolvesRegisteredService()
     {
-        await using var host = new AppModuleTestHost();
-        await host.Add<ServiceModule>().StartAsync().WaitAsync(Timeout);
+        await using var host = new AppModuleTestHost(m => m.Add<ServiceModule>());
+        await host.StartAsync().WaitAsync(Timeout);
 
-        var service = host.GetRequiredService<TestService>();
+        var service = host.Services.GetRequiredService<TestService>();
 
-        service.ShouldNotBeNull();
         service.Name.ShouldBe("TestService");
     }
 
     [Fact]
-    public void GetTestClient_BeforeStart_Throws()
+    public async Task CreateClient_BeforeStart_Throws()
     {
-        var host = new AppModuleTestHost();
+        await using var host = new AppModuleTestHost(m => m.Add<HelloModule>());
 
-        Should.Throw<InvalidOperationException>(() => host.GetTestClient());
+        Should.Throw<InvalidOperationException>(() => host.CreateClient());
     }
 
     [Fact]
-    public async Task ConfigureBuilder_IsApplied()
+    public void Constructors_NullArgument_Throw()
     {
-        var configured = false;
-
-        await using var host = new AppModuleTestHost();
-        await host
-            .ConfigureBuilder(_ => configured = true)
-            .Add<HelloModule>()
-            .StartAsync().WaitAsync(Timeout);
-
-        configured.ShouldBeTrue();
+        Should.Throw<ArgumentNullException>(() => new AppModuleTestHost((AppModuleCollection)null!));
+        Should.Throw<ArgumentNullException>(() => new AppModuleTestHost((Action<AppModuleCollection>)null!));
     }
 
     [Fact]
     public async Task DisposeAsync_DisposesTheServiceProvider()
     {
-        var host = new AppModuleTestHost();
-        await host.Add<ServiceModule>().StartAsync().WaitAsync(Timeout);
-        host.GetRequiredService<TestService>().ShouldNotBeNull();
+        var host = new AppModuleTestHost(m => m.Add<ServiceModule>());
+        await host.StartAsync().WaitAsync(Timeout);
+        var services = host.Services;
 
         await host.DisposeAsync();
 
-        Should.Throw<ObjectDisposedException>(() => host.GetRequiredService<TestService>());
+        Should.Throw<ObjectDisposedException>(() => services.GetRequiredService<TestService>());
     }
 
     [Fact]
     public async Task StartAsync_MiddlewareFailure_DisposesTheAppAndRethrows()
     {
         var module = new FailingMiddlewareModule();
-        await using var host = new AppModuleTestHost().Add(module);
+        await using var host = new AppModuleTestHost(m => m.Add(module));
 
         await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync().WaitAsync(Timeout));
 
         module.Probe.ShouldNotBeNull().Disposed.ShouldBeTrue();
-        Should.Throw<InvalidOperationException>(() => host.GetTestClient());
+        Should.Throw<InvalidOperationException>(() => host.CreateClient());
     }
 
     private sealed class FailingMiddlewareModule : IWebModule
@@ -107,8 +99,8 @@ public class AppModuleTestHostTests
     public async Task StartAsync_RunsPhasesInOrderAcrossModules()
     {
         var log = new List<string>();
-        await using var host = new AppModuleTestHost();
-        await host.Add(new RecordingModule("A", log)).Add(new RecordingModule("B", log)).StartAsync().WaitAsync(Timeout);
+        await using var host = new AppModuleTestHost(m => m.Add(new RecordingModule("A", log)).Add(new RecordingModule("B", log)));
+        await host.StartAsync().WaitAsync(Timeout);
 
         log.ShouldBe(ExpectedOrder);
     }

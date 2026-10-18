@@ -191,35 +191,35 @@ public class ReplaceModuleTests
     [Fact]
     public async Task TestHost_Replace_RegistersFakeNotReal()
     {
-        await using var host = await new AppModuleTestHost()
+        await using var host = await new AppModuleTestHost(m => m
             .Add<RealServiceModule>()
-            .Replace<RealServiceModule, FakeServiceModule>()
+            .Replace<RealServiceModule, FakeServiceModule>())
             .StartAsync();
 
-        host.GetRequiredService<FakeService>().ShouldNotBeNull();
-        Should.Throw<InvalidOperationException>(() => host.GetRequiredService<RealService>());
+        host.Services.GetRequiredService<FakeService>().ShouldNotBeNull();
+        Should.Throw<InvalidOperationException>(() => host.Services.GetRequiredService<RealService>());
     }
 
     [Fact]
     public async Task TestHost_Replace_KeepsPosition()
     {
         var log = new List<string>();
-        await using var host = await new AppModuleTestHost()
+        await using var host = await new AppModuleTestHost(m => m
             .Add(new OrderedModule("first", log))
             .Add<RealServiceModule>()
             .Add(new OrderedModule("last", log))
-            .Replace<RealServiceModule, FakeServiceModule>()
+            .Replace<RealServiceModule, FakeServiceModule>())
             .StartAsync();
 
         // Fake sits between first and last: its service is registered and order is preserved.
         log.ShouldBe(["first", "last"]);
-        host.GetRequiredService<FakeService>().ShouldNotBeNull();
+        host.Services.GetRequiredService<FakeService>().ShouldNotBeNull();
     }
 
     [Fact]
     public async Task TestHost_Replace_ThrowsWhenModuleNotFound()
     {
-        await using var host = new AppModuleTestHost().Replace<ModuleB, ReplacementModule>();
+        await using var host = new AppModuleTestHost(m => m.Replace<ModuleB, ReplacementModule>());
 
         await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync());
     }
@@ -239,11 +239,12 @@ public class ReplaceModuleTests
     [InlineData(true, System.Net.HttpStatusCode.OK)]
     public async Task Replace_KeepsTheCondition(bool on, System.Net.HttpStatusCode expected)
     {
-        await using var host = await new AppModuleTestHost()
+        await using var host = await new AppModuleTestHost(m => m
             .AddIf<RealProbeModule>(_ => on)
-            .Replace<RealProbeModule, FakeProbeModule>()
+            .Replace<RealProbeModule, FakeProbeModule>())
             .StartAsync();
 
-        (await host.GetTestClient().GetAsync("/fake")).StatusCode.ShouldBe(expected);
+        using var client = host.CreateClient();
+        (await client.GetAsync("/fake")).StatusCode.ShouldBe(expected);
     }
 }
