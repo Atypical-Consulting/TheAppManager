@@ -2,8 +2,9 @@ name: release-please
 
 # Derives the next version from the Conventional Commits on `dev` (the default branch) and keeps a
 # release PR up to date: CHANGELOG.md, .release-please-manifest.json and the <Version> in
-# TheAppManager.csproj (x-release-please-version marker). Merging that PR tags vX.Y.Z and creates
-# the GitHub Release; the publish job below then pushes the package to NuGet.
+# TheAppManager.csproj and TheAppManager.Testing.csproj (x-release-please-version marker; both packages
+# ship in lockstep). Merging that PR tags vX.Y.Z and creates the GitHub Release; the publish job below
+# then pushes both packages to NuGet.
 #
 # Publishing lives in THIS workflow, gated on `release_created`: a tag created by release-please with
 # GITHUB_TOKEN does not trigger other workflows. PRs are squash-merged, so the PR title decides the bump.
@@ -72,7 +73,9 @@ jobs:
         run: dotnet test --configuration Release
 
       - name: Pack
-        run: dotnet pack src/TheAppManager/TheAppManager.csproj --configuration Release --output ./nupkg
+        run: |
+          dotnet pack src/TheAppManager/TheAppManager.csproj --configuration Release --output ./nupkg
+          dotnet pack src/TheAppManager.Testing/TheAppManager.Testing.csproj --configuration Release --output ./nupkg
 
       # Trusted Publishing: exchanges the OIDC token for a NuGet key valid ~1 hour, so no long-lived
       # secret is stored. Keep it adjacent to the push so the key cannot expire in between. Requires a
