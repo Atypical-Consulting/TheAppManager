@@ -20,12 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 * do not register a module twice when scanning its assembly ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f))
 * keep discovering modules when some types fail to load ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f))
 * run every ConfigureBuilder callback instead of only the last ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f)), closes [#62](https://github.com/Atypical-Consulting/TheAppManager/issues/62)
-* tidy ConfigureBuilder, RunAsync cancellation and module discovery ([#62](https://github.com/Atypical-Consulting/TheAppManager/issues/62)) ([#68](https://github.com/Atypical-Consulting/TheAppManager/issues/68)) ([b21d21f](https://github.com/Atypical-Consulting/TheAppManager/commit/b21d21f14d1cb7329be33f2e51a6e3eedc22bc2f))
 
 
 ### Refactor
 
-* share one module pipeline between AppManagerBuilder and AppModuleTestHost ([e7dab9f](https://github.com/Atypical-Consulting/TheAppManager/commit/e7dab9f020b4d94e577b54faceeaa3322ee0a471))
 * share one module pipeline between AppManagerBuilder and AppModuleTestHost ([#59](https://github.com/Atypical-Consulting/TheAppManager/issues/59)) ([#64](https://github.com/Atypical-Consulting/TheAppManager/issues/64)) ([e7dab9f](https://github.com/Atypical-Consulting/TheAppManager/commit/e7dab9f020b4d94e577b54faceeaa3322ee0a471))
 
 ## [2.1.0](https://github.com/Atypical-Consulting/TheAppManager/compare/v2.0.0...v2.1.0) (2026-10-18)
