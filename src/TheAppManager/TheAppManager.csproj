@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>TheAppManager</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
 
     <!-- NuGet Package Metadata -->
     <PackageId>TheAppManager</PackageId>
