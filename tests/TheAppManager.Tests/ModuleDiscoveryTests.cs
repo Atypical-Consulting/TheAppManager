@@ -6,6 +6,21 @@ namespace TheAppManager.Tests;
 public class ModuleDiscoveryTests
 {
     [Fact]
+    public void DiscoverModules_WhenSomeTypesFailToLoad_ReturnsLoadableModules()
+    {
+        var modules = ModuleDiscovery.DiscoverModules(new PartiallyLoadableAssembly()).ToList();
+
+        modules.Count.ShouldBe(1);
+        modules[0].ShouldBeOfType<TestDiscoverableModule>();
+    }
+
+    private sealed class PartiallyLoadableAssembly : Assembly
+    {
+        public override Type[] GetTypes() =>
+            throw new ReflectionTypeLoadException([typeof(TestDiscoverableModule), null], [null, new FileNotFoundException()]);
+    }
+
+    [Fact]
     public void DiscoverModules_FindsConcreteModules()
     {
         var modules = ModuleDiscovery.DiscoverModules(Assembly.GetExecutingAssembly()).ToList();

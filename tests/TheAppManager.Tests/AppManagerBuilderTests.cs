@@ -21,6 +21,20 @@ public class AppManagerBuilderTests
     }
 
     [Fact]
+    public void ConfigureBuilder_CalledTwice_RunsBothCallbacksInOrder()
+    {
+        var log = new List<string>();
+
+        new AppManagerBuilder([])
+            .ConfigureBuilder(_ => log.Add("first"))
+            .ConfigureBuilder(null)
+            .ConfigureBuilder(_ => log.Add("second"))
+            .Build(new AppModuleCollection());
+
+        log.ShouldBe(["first", "second"]);
+    }
+
+    [Fact]
     public void Build_CallsConfigureServices()
     {
         var module = new TestModule();

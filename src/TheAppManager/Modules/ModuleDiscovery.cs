@@ -18,10 +18,22 @@ public static class ModuleDiscovery
     {
         ArgumentNullException.ThrowIfNull(assembly);
 
-        return assembly.GetTypes()
+        return GetLoadableTypes(assembly)
             .Where(IsAppModule)
             .OrderBy(t => t.Name, StringComparer.Ordinal)
             .Select(t => (IAppModule)Activator.CreateInstance(t)!);
+    }
+
+    private static Type[] GetLoadableTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return ex.Types.OfType<Type>().ToArray();
+        }
     }
 
     private static bool IsAppModule(Type type)

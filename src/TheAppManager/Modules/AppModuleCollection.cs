@@ -64,6 +64,7 @@ public class AppModuleCollection : IEnumerable<IAppModule>
     /// <summary>
     /// Scans the specified <paramref name="assembly"/> for all <see cref="IAppModule"/>
     /// implementations and adds them to this collection.
+    /// Module types already present in the collection are skipped.
     /// </summary>
     /// <param name="assembly">The assembly to scan.</param>
     /// <returns>This collection for chaining.</returns>
@@ -74,7 +75,10 @@ public class AppModuleCollection : IEnumerable<IAppModule>
 
         foreach (var module in ModuleDiscovery.DiscoverModules(assembly))
         {
-            _modules.Add(module);
+            if (_modules.All(m => m.GetType() != module.GetType()))
+            {
+                _modules.Add(module);
+            }
         }
 
         return this;

@@ -20,6 +20,18 @@ public class AppManagerTests
     }
 
     [Fact]
+    public async Task RunAsync_WithToken_CompletesWhenCancelled()
+    {
+        var app = new AppManagerBuilder(["--urls", "http://127.0.0.1:0"]).Build(new AppModuleCollection());
+        using var cts = new CancellationTokenSource();
+
+        var run = app.RunAsync(cts.Token);
+        await cts.CancelAsync();
+
+        await run.WaitAsync(TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
     public async Task StartAsync_WithModules_RunsAndCompletes()
     {
         await AppManager.StartAsync([], modules =>
