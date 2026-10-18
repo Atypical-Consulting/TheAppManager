@@ -1,4 +1,9 @@
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using TheAppManager.Modules;
+using TheAppManager.Testing;
 
 namespace TheAppManager.Tests;
 
@@ -84,4 +89,60 @@ public class AppModuleCollectionTests
     }
 
     private class EmptyModule : IAppModule;
+
+    private sealed class ProbeModule : IAppModule
+    {
+        public void ConfigureEndpoints(IEndpointRouteBuilder app) => app.MapGet("/probe", () => "ok");
+    }
+
+    private static async Task<System.Net.HttpStatusCode> ProbeAsync(AppModuleTestHost host)
+    {
+        await using var started = await host.StartAsync();
+        return (await started.GetTestClient().GetAsync("/probe")).StatusCode;
+    }
+
+    [Theory]
+    [InlineData("Development", System.Net.HttpStatusCode.OK)]
+    [InlineData("Production", System.Net.HttpStatusCode.NotFound)]
+    public async Task AddIf_Predicate_ReadsEnvironment(string env, System.Net.HttpStatusCode expected)
+    {
+        var host = new AppModuleTestHost()
+            .ConfigureBuilder(b => b.Environment.EnvironmentName = env)
+            .AddIf<ProbeModule>(b => b.Environment.IsDevelopment());
+
+        (await ProbeAsync(host)).ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task AddIf_Predicate_SeesConfigFromConfigureBuilder()
+    {
+        var host = new AppModuleTestHost()
+            .ConfigureBuilder(b => b.Configuration["Probe:On"] = "true")
+            .AddIf<ProbeModule>(b => b.Configuration.GetValue<bool>("Probe:On"));
+
+        (await ProbeAsync(host)).ShouldBe(System.Net.HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AddIf_Predicate_RunsOncePerBuild()
+    {
+        var calls = 0;
+        var host = new AppModuleTestHost().AddIf<ProbeModule>(_ => { calls++; return true; });
+
+        (await ProbeAsync(host)).ShouldBe(System.Net.HttpStatusCode.OK);
+        calls.ShouldBe(1);
+    }
+
+    [Fact]
+    public void AddIf_NullPredicate_Throws()
+    {
+        Should.Throw<ArgumentNullException>(() =>
+            new AppModuleCollection().AddIf<EmptyModule>((Func<WebApplicationBuilder, bool>)null!));
+    }
+
+    [Fact]
+    public void AddIf_Predicate_StillEnumerated()
+    {
+        new AppModuleCollection().AddIf<EmptyModule>(_ => false).Count().ShouldBe(1);
+    }
 }

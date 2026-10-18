@@ -46,6 +46,16 @@ public class AppModuleTestHost : IAsyncDisposable
     }
 
     /// <summary>
+    /// Adds a module applied only when <paramref name="predicate"/> returns true for the real builder, evaluated once at start.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is null.</exception>
+    public AppModuleTestHost AddIf<TModule>(Func<WebApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
+    {
+        _modules.AddIf<TModule>(predicate);
+        return this;
+    }
+
+    /// <summary>
     /// Replaces the first module of type <typeparamref name="TOld"/> with a new <typeparamref name="TNew"/>, keeping its position.
     /// </summary>
     /// <exception cref="InvalidOperationException">No module of type <typeparamref name="TOld"/> was added.</exception>
