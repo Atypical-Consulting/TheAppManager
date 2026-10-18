@@ -74,3 +74,26 @@ public class WebApplicationFactoryModuleTests
         public void ConfigureEndpoints(IEndpointRouteBuilder endpoints) => endpoints.MapGet("/ping", () => value);
     }
 }
+
+[CollectionDefinition(nameof(ProcessEnvironmentCollection), DisableParallelization = true)]
+public sealed class ProcessEnvironmentCollection;
+
+// Mutates a process-wide environment variable, so it runs alone.
+[Collection(nameof(ProcessEnvironmentCollection))]
+public class WebApplicationFactoryArgsTests
+{
+    [Fact]
+    public void ProgramIgnoringArgs_FailsLoudly()
+    {
+        Environment.SetEnvironmentVariable("NO_ARGS", "1");
+        try
+        {
+            using var factory = new WebApplicationFactory<Program>().WithModules(m => m.Without<ExtraModule>());
+            Should.Throw<InvalidOperationException>(() => factory.CreateClient()).Message.ShouldContain("args");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NO_ARGS", null);
+        }
+    }
+}
