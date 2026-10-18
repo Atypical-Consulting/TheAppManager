@@ -1,13 +1,12 @@
 using Microsoft.AspNetCore.Builder;
-using TheAppManager.Modules;
 
-namespace TheAppManager.Startup;
+namespace TheAppManager;
 
 /// <summary>
 /// Builds an <see cref="AppManager"/> by applying an <see cref="AppModuleCollection"/>
 /// to a <see cref="WebApplicationBuilder"/>.
 /// </summary>
-public class AppManagerBuilder
+public sealed class AppManagerBuilder
 {
     private readonly WebApplicationBuilder _builder;
     private readonly List<Action<WebApplicationBuilder>> _configureBuilder = [];

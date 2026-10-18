@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace TheAppManager.Modules;
+namespace TheAppManager;
 
 /// <summary>
 /// Discovers <see cref="IAppModule"/> implementations in assemblies via reflection.

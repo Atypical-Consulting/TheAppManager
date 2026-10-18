@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using TheAppManager.Modules;
+using Microsoft.Extensions.Hosting;
 
 namespace TheAppManager.Testing;
 
@@ -11,7 +11,7 @@ namespace TheAppManager.Testing;
 /// A test host that builds a TestServer from registered modules.
 /// Provides a fluent API for integration testing with IAppModule implementations.
 /// </summary>
-public class AppModuleTestHost : IAsyncDisposable
+public sealed class AppModuleTestHost : IAsyncDisposable
 {
     private readonly AppModuleCollection _modules = new();
     private readonly List<Action<WebApplicationBuilder>> _builderConfigurations = [];
@@ -37,28 +37,20 @@ public class AppModuleTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// Conditionally adds a module.
-    /// </summary>
-    public AppModuleTestHost AddIf<TModule>(bool condition) where TModule : IAppModule, new()
-    {
-        _modules.AddIf<TModule>(condition);
-        return this;
-    }
-
-    /// <summary>
     /// Adds a module applied only when <paramref name="predicate"/> returns true for the real builder, evaluated once at start.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is null.</exception>
-    public AppModuleTestHost AddIf<TModule>(Func<WebApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
+    public AppModuleTestHost AddIf<TModule>(Func<IHostApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
     {
         _modules.AddIf<TModule>(predicate);
         return this;
     }
 
     /// <summary>
-    /// Replaces the first module of type <typeparamref name="TOld"/> with a new <typeparamref name="TNew"/>, keeping its position.
+    /// Replaces every module of exactly type <typeparamref name="TOld"/> with a new <typeparamref name="TNew"/>,
+    /// keeping its position and predicate. The substitution is applied at <see cref="StartAsync"/>,
+    /// which throws <see cref="InvalidOperationException"/> when no module of type <typeparamref name="TOld"/> was added.
     /// </summary>
-    /// <exception cref="InvalidOperationException">No module of type <typeparamref name="TOld"/> was added.</exception>
     public AppModuleTestHost Replace<TOld, TNew>()
         where TOld : IAppModule
         where TNew : IAppModule, new()

@@ -1,5 +1,5 @@
+using TheAppManager;
 using TheAppManager.Sample.Modules;
-using TheAppManager.Startup;
 
 // Explicit module registration — full control over which modules run
 AppManager.Start(args, modules =>
