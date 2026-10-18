@@ -27,6 +27,7 @@
 - [Testing](#testing)
   - [Integration Testing with AppModuleTestHost](#integration-testing-with-appmoduletesthost)
   - [Replacing Modules in Tests](#replacing-modules-in-tests)
+  - [Replacing modules under WebApplicationFactory](#replacing-modules-under-webapplicationfactory)
 - [Async Support](#async-support)
 - [Builder Configuration Hook](#builder-configuration-hook)
 - [Advanced: Using AppManagerBuilder](#advanced-using-appmanagerbuilder)
@@ -305,6 +306,26 @@ await using var host = await new AppModuleTestHost()
     .Replace<AuthModule, FakeAuthModule>()
     .StartAsync();
 ```
+
+### Replacing modules under WebApplicationFactory
+
+To test the real app (`Program`) with a module swapped or removed, use `WithModules` on a
+`WebApplicationFactory<Program>`. The amendment runs after `Program`'s own `AddModules` composition and
+before the plan is resolved; chained calls apply in call order, and parallel factories stay isolated.
+
+```csharp
+using TheAppManager.Testing;
+
+await using var factory = new WebApplicationFactory<Program>()
+    .WithModules(m => m.Replace<SmtpModule, FakeSmtpModule>())
+    .WithModules(m => m.Without<SwaggerModule>());
+
+var client = factory.CreateClient();
+```
+
+`Program` must pass `args` to `WebApplication.CreateBuilder(args)`: the amendment reaches the app through
+those arguments, and building the host throws `InvalidOperationException` when it was not applied. To swap
+a single service rather than a module, use `WebApplicationFactory`'s own `ConfigureTestServices`.
 
 ## Async Support
 

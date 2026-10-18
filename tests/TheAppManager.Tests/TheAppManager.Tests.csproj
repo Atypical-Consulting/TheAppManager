@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TheAppManager\TheAppManager.csproj" />
     <ProjectReference Include="..\..\src\TheAppManager.Testing\TheAppManager.Testing.csproj" />
+    <ProjectReference Include="..\TheAppManager.Testing.WebApp\TheAppManager.Testing.WebApp.csproj" />
   </ItemGroup>
 
 </Project>
