@@ -1,0 +1,15 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.1">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <!-- MessagePack advisory comes transitively from Aspire.Hosting.AppHost; Renovate owns the bump. -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
+    <UserSecretsId>7cb54726-c539-48c6-9220-a0351c809fd4</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TheAppManager.Sample\TheAppManager.Sample.csproj" />
+  </ItemGroup>
+
+</Project>
