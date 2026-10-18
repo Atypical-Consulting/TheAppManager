@@ -2,12 +2,12 @@ using System.Collections;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 
-namespace TheAppManager.Modules;
+namespace TheAppManager;
 
 /// <summary>
 /// A collection of <see cref="IAppModule"/> instances that controls registration and ordering.
 /// </summary>
-public class AppModuleCollection : IEnumerable<IAppModule>
+public sealed class AppModuleCollection : IEnumerable<IAppModule>
 {
     private readonly List<(IAppModule Module, Func<WebApplicationBuilder, bool>? When)> _modules = [];
 

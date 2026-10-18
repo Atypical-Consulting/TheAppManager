@@ -1,16 +1,15 @@
 using Microsoft.Extensions.Hosting;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
-using TheAppManager.Modules;
 
-namespace TheAppManager.Startup;
+namespace TheAppManager;
 
 /// <summary>
 /// Manages the lifecycle of an ASP.NET Core web application.
 /// Use <see cref="Start"/> or <see cref="StartAsync"/> for a simplified startup experience,
 /// or use <see cref="AppManagerBuilder"/> for more control.
 /// </summary>
-public class AppManager
+public sealed class AppManager
 {
     private readonly WebApplication _app;
 

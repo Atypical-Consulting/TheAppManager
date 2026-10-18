@@ -1,5 +1,4 @@
 using System.Reflection;
-using TheAppManager.Modules;
 
 namespace TheAppManager.Tests;
 

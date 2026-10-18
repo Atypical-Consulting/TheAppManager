@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using TheAppManager.Modules;
 using TheAppManager.Testing;
 
 namespace TheAppManager.Tests;
@@ -90,7 +89,7 @@ public class AppModuleCollectionTests
 
     private class EmptyModule : IAppModule;
 
-    private sealed class ProbeModule : IAppModule
+    private sealed class ProbeModule : IWebModule
     {
         public void ConfigureEndpoints(IEndpointRouteBuilder app) => app.MapGet("/probe", () => "ok");
     }

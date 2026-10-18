@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
-using TheAppManager.Modules;
-using TheAppManager.Startup;
 
 namespace TheAppManager.Tests;
 
@@ -77,7 +75,7 @@ public class AppManagerTests
         await appManager.RunAsync();
     }
 
-    private class ShutdownModule : IAppModule
+    private class ShutdownModule : IWebModule
     {
         public void ConfigureMiddleware(WebApplication app)
         {
@@ -88,7 +86,7 @@ public class AppManagerTests
         }
     }
 
-    private class EndpointTrackingModule(Action onConfigure) : IAppModule
+    private class EndpointTrackingModule(Action onConfigure) : IWebModule
     {
         public void ConfigureEndpoints(IEndpointRouteBuilder endpoints)
         {

@@ -1,13 +1,13 @@
-using TheAppManager.Modules;
+using TheAppManager;
 
 namespace TheAppManager.Sample.Modules;
 
 /// <summary>
 /// Adds authentication middleware to the application.
 /// </summary>
-public class AuthModule : IAppModule
+public class AuthModule : IWebModule
 {
-    public void ConfigureServices(WebApplicationBuilder builder)
+    public void ConfigureServices(IHostApplicationBuilder builder)
     {
         builder.Services.AddAuthentication();
     }

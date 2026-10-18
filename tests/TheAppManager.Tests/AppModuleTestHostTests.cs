@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Hosting;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using TheAppManager.Modules;
 using TheAppManager.Testing;
 
 namespace TheAppManager.Tests;
@@ -77,9 +77,9 @@ public class AppModuleTestHostTests
         log.ShouldBe(ExpectedOrder);
     }
 
-    private sealed class RecordingModule(string name, List<string> log) : IAppModule
+    private sealed class RecordingModule(string name, List<string> log) : IWebModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder) => log.Add(name + ".Services");
+        public void ConfigureServices(IHostApplicationBuilder builder) => log.Add(name + ".Services");
         public void ConfigureMiddleware(WebApplication app) => log.Add(name + ".Middleware");
         public void ConfigureEndpoints(IEndpointRouteBuilder endpoints) => log.Add(name + ".Endpoints");
     }
@@ -87,7 +87,7 @@ public class AppModuleTestHostTests
     private static readonly string[] ExpectedOrder =
         ["A.Services", "B.Services", "A.Middleware", "B.Middleware", "A.Endpoints", "B.Endpoints"];
 
-    private class HelloModule : IAppModule
+    private class HelloModule : IWebModule
     {
         public void ConfigureEndpoints(IEndpointRouteBuilder endpoints)
         {
@@ -97,7 +97,7 @@ public class AppModuleTestHostTests
 
     private class ServiceModule : IAppModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder)
+        public void ConfigureServices(IHostApplicationBuilder builder)
         {
             builder.Services.AddSingleton(new TestService { Name = "TestService" });
         }

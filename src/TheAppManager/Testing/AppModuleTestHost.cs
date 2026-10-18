@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using TheAppManager.Modules;
 
 namespace TheAppManager.Testing;
 
@@ -11,7 +10,7 @@ namespace TheAppManager.Testing;
 /// A test host that builds a TestServer from registered modules.
 /// Provides a fluent API for integration testing with IAppModule implementations.
 /// </summary>
-public class AppModuleTestHost : IAsyncDisposable
+public sealed class AppModuleTestHost : IAsyncDisposable
 {
     private readonly AppModuleCollection _modules = new();
     private readonly List<Action<WebApplicationBuilder>> _builderConfigurations = [];

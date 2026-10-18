@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using TheAppManager.Modules;
 using TheAppManager.Testing;
 
 namespace TheAppManager.Tests;
@@ -80,17 +80,17 @@ public class ReplaceModuleTests
 
     private class RealServiceModule : IAppModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder) => builder.Services.AddSingleton<RealService>();
+        public void ConfigureServices(IHostApplicationBuilder builder) => builder.Services.AddSingleton<RealService>();
     }
 
     private class FakeServiceModule : IAppModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder) => builder.Services.AddSingleton<FakeService>();
+        public void ConfigureServices(IHostApplicationBuilder builder) => builder.Services.AddSingleton<FakeService>();
     }
 
     private class OrderedModule(string name, List<string> log) : IAppModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder) => log.Add(name);
+        public void ConfigureServices(IHostApplicationBuilder builder) => log.Add(name);
     }
 
     [Fact]
@@ -128,12 +128,12 @@ public class ReplaceModuleTests
             () => new AppModuleTestHost().Replace<ModuleB, ReplacementModule>());
     }
 
-    private sealed class RealProbeModule : IAppModule
+    private sealed class RealProbeModule : IWebModule
     {
         public void ConfigureEndpoints(IEndpointRouteBuilder app) => app.MapGet("/real", () => "real");
     }
 
-    private sealed class FakeProbeModule : IAppModule
+    private sealed class FakeProbeModule : IWebModule
     {
         public void ConfigureEndpoints(IEndpointRouteBuilder app) => app.MapGet("/fake", () => "fake");
     }

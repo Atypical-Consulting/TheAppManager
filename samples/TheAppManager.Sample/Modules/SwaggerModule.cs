@@ -1,13 +1,13 @@
-using TheAppManager.Modules;
+using TheAppManager;
 
 namespace TheAppManager.Sample.Modules;
 
 /// <summary>
 /// Adds Swagger/OpenAPI support to the application.
 /// </summary>
-public class SwaggerModule : IAppModule
+public class SwaggerModule : IWebModule
 {
-    public void ConfigureServices(WebApplicationBuilder builder)
+    public void ConfigureServices(IHostApplicationBuilder builder)
     {
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();

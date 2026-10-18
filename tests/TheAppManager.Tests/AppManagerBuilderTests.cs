@@ -1,7 +1,6 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
-using TheAppManager.Modules;
-using TheAppManager.Startup;
 
 namespace TheAppManager.Tests;
 
@@ -44,6 +43,25 @@ public class AppManagerBuilderTests
         new AppManagerBuilder([]).Build(modules);
 
         module.ConfigureServicesCalled.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Build_HostAgnosticModule_RunsOnlyServices()
+    {
+        var module = new ServicesOnly();
+        var modules = new AppModuleCollection();
+        modules.Add(module);
+
+        new AppManagerBuilder([]).Build(modules);
+
+        module.Called.ShouldBeTrue();
+    }
+
+    private sealed class ServicesOnly : IAppModule
+    {
+        public bool Called { get; private set; }
+
+        public void ConfigureServices(IHostApplicationBuilder builder) => Called = true;
     }
 
     [Fact]
@@ -151,13 +169,13 @@ public class AppManagerBuilderTests
         appManager.ShouldNotBeNull();
     }
 
-    private class TestModule : IAppModule
+    private class TestModule : IWebModule
     {
         public bool ConfigureServicesCalled { get; private set; }
         public bool ConfigureMiddlewareCalled { get; private set; }
         public bool ConfigureEndpointsCalled { get; private set; }
 
-        public void ConfigureServices(WebApplicationBuilder builder)
+        public void ConfigureServices(IHostApplicationBuilder builder)
         {
             ConfigureServicesCalled = true;
         }
@@ -175,15 +193,15 @@ public class AppManagerBuilderTests
 
     private class TrackingModule(string name, List<string> callOrder) : IAppModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder)
+        public void ConfigureServices(IHostApplicationBuilder builder)
         {
             callOrder.Add(name);
         }
     }
 
-    private sealed class RecordingModule(string name, List<string> log) : IAppModule
+    private sealed class RecordingModule(string name, List<string> log) : IWebModule
     {
-        public void ConfigureServices(WebApplicationBuilder builder) => log.Add(name + ".Services");
+        public void ConfigureServices(IHostApplicationBuilder builder) => log.Add(name + ".Services");
         public void ConfigureMiddleware(WebApplication app) => log.Add(name + ".Middleware");
         public void ConfigureEndpoints(IEndpointRouteBuilder endpoints) => log.Add(name + ".Endpoints");
     }

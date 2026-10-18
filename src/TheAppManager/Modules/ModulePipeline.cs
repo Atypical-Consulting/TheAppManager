@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 
-namespace TheAppManager.Modules;
+namespace TheAppManager;
 
 /// <summary>
 /// The single copy of the module pipeline, shared by production startup and the test host.
@@ -8,7 +8,7 @@ namespace TheAppManager.Modules;
 internal static class ModulePipeline
 {
     /// <summary>
-    /// Runs every ConfigureServices, builds the app, then every ConfigureMiddleware and ConfigureEndpoints.
+    /// Runs every ConfigureServices, builds the app, then ConfigureMiddleware and ConfigureEndpoints on every <see cref="IWebModule"/>.
     /// </summary>
     internal static WebApplication Build(WebApplicationBuilder builder, AppModuleCollection modules)
     {
@@ -21,12 +21,14 @@ internal static class ModulePipeline
 
         var app = builder.Build();
 
-        foreach (var module in registered)
+        var web = registered.OfType<IWebModule>().ToList();
+
+        foreach (var module in web)
         {
             module.ConfigureMiddleware(app);
         }
 
-        foreach (var module in registered)
+        foreach (var module in web)
         {
             module.ConfigureEndpoints(app);
         }
