@@ -11,6 +11,16 @@ public class TestDiscoverableModule : IAppModule;
 public class MultiAssemblyScanningTests
 {
     [Fact]
+    public void AddFromAssemblyOf_SkipsModuleAlreadyAdded()
+    {
+        var collection = new AppModuleCollection();
+
+        collection.Add<TestDiscoverableModule>().AddFromAssemblyOf<TestDiscoverableModule>();
+
+        collection.Count(m => m.GetType() == typeof(TestDiscoverableModule)).ShouldBe(1);
+    }
+
+    [Fact]
     public void AddFromAssemblyOf_DiscoversModulesInAssembly()
     {
         // Arrange
