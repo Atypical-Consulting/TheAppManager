@@ -8,6 +8,19 @@ namespace TheAppManager.Tests;
 public class AppManagerBuilderTests
 {
     [Fact]
+    public void Build_RunsPhasesInOrderAcrossModules()
+    {
+        var log = new List<string>();
+        var modules = new AppModuleCollection();
+        modules.Add(new RecordingModule("A", log));
+        modules.Add(new RecordingModule("B", log));
+
+        new AppManagerBuilder([]).Build(modules);
+
+        log.ShouldBe(ExpectedOrder);
+    }
+
+    [Fact]
     public void Build_CallsConfigureServices()
     {
         var module = new TestModule();
@@ -153,4 +166,14 @@ public class AppManagerBuilderTests
             callOrder.Add(name);
         }
     }
+
+    private sealed class RecordingModule(string name, List<string> log) : IAppModule
+    {
+        public void ConfigureServices(WebApplicationBuilder builder) => log.Add(name + ".Services");
+        public void ConfigureMiddleware(WebApplication app) => log.Add(name + ".Middleware");
+        public void ConfigureEndpoints(IEndpointRouteBuilder endpoints) => log.Add(name + ".Endpoints");
+    }
+
+    private static readonly string[] ExpectedOrder =
+        ["A.Services", "B.Services", "A.Middleware", "B.Middleware", "A.Endpoints", "B.Endpoints"];
 }

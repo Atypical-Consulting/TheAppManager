@@ -68,23 +68,7 @@ public class AppModuleTestHost : IAsyncDisposable
             configure(builder);
         }
 
-        var modules = _modules.GetModules();
-        foreach (var module in modules)
-        {
-            module.ConfigureServices(builder);
-        }
-
-        _app = builder.Build();
-
-        foreach (var module in modules)
-        {
-            module.ConfigureMiddleware(_app);
-        }
-
-        foreach (var module in modules)
-        {
-            module.ConfigureEndpoints(_app);
-        }
+        _app = ModulePipeline.Build(builder, _modules);
 
         await _app.StartAsync();
         return this;
