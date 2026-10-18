@@ -47,9 +47,10 @@ public sealed class AppModuleTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// Replaces the first module of type <typeparamref name="TOld"/> with a new <typeparamref name="TNew"/>, keeping its position.
+    /// Replaces every module of exactly type <typeparamref name="TOld"/> with a new <typeparamref name="TNew"/>,
+    /// keeping its position and predicate. The substitution is applied at <see cref="StartAsync"/>,
+    /// which throws <see cref="InvalidOperationException"/> when no module of type <typeparamref name="TOld"/> was added.
     /// </summary>
-    /// <exception cref="InvalidOperationException">No module of type <typeparamref name="TOld"/> was added.</exception>
     public AppModuleTestHost Replace<TOld, TNew>()
         where TOld : IAppModule
         where TNew : IAppModule, new()

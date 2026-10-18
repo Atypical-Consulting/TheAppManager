@@ -33,48 +33,130 @@ public class ReplaceModuleTests
     }
 
     [Fact]
-    public void Replace_ThrowsWhenModuleNotFound()
+    public void Replace_UnregisteredType_ThrowsAtResolveNotAtCall()
     {
-        // Arrange
-        var collection = new AppModuleCollection();
-        collection.Add<ModuleA>();
+        var collection = new AppModuleCollection().Add<ModuleA>();
 
-        // Act & Assert
-        Should.Throw<InvalidOperationException>(
-            () => collection.Replace<ModuleB, ReplacementModule>());
+        collection.Replace<ModuleB, ReplacementModule>();
+
+        Should.Throw<InvalidOperationException>(() => collection.Resolve(Builders.Empty()))
+            .Message.ShouldContain(typeof(ModuleB).FullName!);
     }
 
     [Fact]
     public void Replace_ReturnsSelfForChaining()
     {
-        // Arrange
-        var collection = new AppModuleCollection();
-        collection.Add<ModuleA>();
+        var collection = new AppModuleCollection().Add<ModuleA>();
 
-        // Act
-        var result = collection.Replace<ModuleA, ReplacementModule>();
-
-        // Assert
-        result.ShouldBeSameAs(collection);
+        collection.Replace<ModuleA, ReplacementModule>().ShouldBeSameAs(collection);
+        collection.Replace<ModuleA>(new ReplacementModule()).ShouldBeSameAs(collection);
     }
 
     [Fact]
-    public void Replace_OnlyReplacesFirstOccurrence()
+    public void Replace_AllowMultiple_ReplacesEveryOccurrence()
     {
-        // Arrange
-        var collection = new AppModuleCollection();
-        collection.Add<ModuleA>().Add<ModuleA>().Add<ModuleC>();
+        var replacement = new MultiReplacement();
+        var collection = new AppModuleCollection().Add<ModuleA>().Add<ModuleA>().Add<ModuleC>();
 
-        // Act
-        collection.Replace<ModuleA, ReplacementModule>();
+        collection.Replace<ModuleA>(replacement);
 
-        // Assert
         var modules = collection.Resolve(Builders.Empty());
         modules.Count.ShouldBe(3);
-        modules[0].ShouldBeOfType<ReplacementModule>();
-        modules[1].ShouldBeOfType<ModuleA>();
+        modules[0].ShouldBeSameAs(replacement);
+        modules[1].ShouldBeSameAs(replacement);
         modules[2].ShouldBeOfType<ModuleC>();
     }
+
+    [Fact]
+    public void Replace_BeforeAdd_IsApplied()
+    {
+        var modules = new AppModuleCollection()
+            .Replace<ModuleA, ReplacementModule>()
+            .Add<ModuleA>()
+            .Resolve(Builders.Empty());
+
+        modules.ShouldHaveSingleItem().ShouldBeOfType<ReplacementModule>();
+    }
+
+    [Fact]
+    public void Replace_SurvivesLaterScan()
+    {
+        var modules = new AppModuleCollection()
+            .Add<TestDiscoverableModule>()
+            .Replace<TestDiscoverableModule, ReplacementModule>()
+            .AddFromAssemblyOf<TestDiscoverableModule>()
+            .Resolve(Builders.Empty());
+
+        modules.ShouldNotContain(m => m is TestDiscoverableModule);
+        modules.Count(m => m is ReplacementModule).ShouldBe(1);
+    }
+
+    [Fact]
+    public void Replace_Instance_KeepsPositionAndPredicate()
+    {
+        var replacement = new ReplacementModule();
+        var collection = new AppModuleCollection()
+            .Add<ModuleB>()
+            .AddIf<ModuleA>(_ => true)
+            .AddIf<ModuleC>(_ => false)
+            .Replace<ModuleA>(replacement)
+            .Replace<ModuleC, OtherReplacement>();
+
+        var modules = collection.Resolve(Builders.Empty());
+
+        modules.Count.ShouldBe(2);
+        modules[0].ShouldBeOfType<ModuleB>();
+        modules[1].ShouldBeSameAs(replacement);
+    }
+
+    [Fact]
+    public void Replace_LastWins()
+    {
+        var modules = new AppModuleCollection()
+            .Add<ModuleA>()
+            .Replace<ModuleA, ReplacementModule>()
+            .Replace<ModuleA, OtherReplacement>()
+            .Resolve(Builders.Empty());
+
+        modules.ShouldHaveSingleItem().ShouldBeOfType<OtherReplacement>();
+    }
+
+    [Fact]
+    public void Replace_ExactTypeOnly()
+    {
+        var collection = new AppModuleCollection().Add<DerivedModuleB>().Replace<ModuleB, ReplacementModule>();
+
+        Should.Throw<InvalidOperationException>(() => collection.Resolve(Builders.Empty()));
+    }
+
+    [Fact]
+    public void Replace_WithAlreadyRegisteredType_ThrowsDuplicate()
+    {
+        var collection = new AppModuleCollection().Add<ModuleB>().Add<ReplacementModule>().Replace<ModuleB, ReplacementModule>();
+
+        Should.Throw<InvalidOperationException>(() => collection.Resolve(Builders.Empty()))
+            .Message.ShouldContain(typeof(ReplacementModule).FullName!);
+    }
+
+    [Fact]
+    public void Replace_NullInstance_Throws()
+    {
+        Should.Throw<ArgumentNullException>(() => new AppModuleCollection().Replace<ModuleA>(null!));
+    }
+
+    [Fact]
+    public void Enumeration_YieldsRegistrationsAsDeclared()
+    {
+        var collection = new AppModuleCollection().Add<ModuleB>().Replace<ModuleB, ReplacementModule>();
+
+        collection.ShouldHaveSingleItem().ShouldBeOfType<ModuleB>();
+    }
+
+    private class DerivedModuleB : ModuleB;
+    private sealed class OtherReplacement : IAppModule;
+
+    [AllowMultipleInstances]
+    private sealed class MultiReplacement : IAppModule;
 
     private class RealService;
     private class FakeService;
@@ -124,10 +206,11 @@ public class ReplaceModuleTests
     }
 
     [Fact]
-    public void TestHost_Replace_ThrowsWhenModuleNotFound()
+    public async Task TestHost_Replace_ThrowsWhenModuleNotFound()
     {
-        Should.Throw<InvalidOperationException>(
-            () => new AppModuleTestHost().Replace<ModuleB, ReplacementModule>());
+        await using var host = new AppModuleTestHost().Replace<ModuleB, ReplacementModule>();
+
+        await Should.ThrowAsync<InvalidOperationException>(() => host.StartAsync());
     }
 
     private sealed class RealProbeModule : IWebModule

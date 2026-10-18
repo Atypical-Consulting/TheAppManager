@@ -10,6 +10,7 @@ namespace TheAppManager;
 public sealed class AppModuleCollection : IEnumerable<IAppModule>
 {
     private readonly List<(IAppModule Module, Func<IHostApplicationBuilder, bool>? When)> _modules = [];
+    private readonly Dictionary<Type, IAppModule> _replacements = [];
 
     /// <summary>
     /// Adds a module by type. The module must have a parameterless constructor.
@@ -80,7 +81,7 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     /// <summary>
     /// Scans the specified <paramref name="assembly"/> for all <see cref="IAppModule"/>
     /// implementations and adds them to this collection.
-    /// Module types already present in the collection are skipped.
+    /// Module types already present in the collection, or used as a <c>Replace</c> replacement, are skipped.
     /// </summary>
     /// <param name="assembly">The assembly to scan.</param>
     /// <returns>This collection for chaining.</returns>
@@ -91,7 +92,8 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
 
         foreach (var module in ModuleDiscovery.DiscoverModules(assembly))
         {
-            if (_modules.All(m => m.Module.GetType() != module.GetType()))
+            var type = module.GetType();
+            if (_modules.All(m => m.Module.GetType() != type) && _replacements.Values.All(r => r.GetType() != type))
             {
                 _modules.Add((module, null));
             }
@@ -101,34 +103,50 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     }
 
     /// <summary>
-    /// Replaces the first module of type <typeparamref name="TOld"/> with a new instance of <typeparamref name="TNew"/>.
-    /// The replacement occupies the same position in the registration order.
-    /// If no module of type <typeparamref name="TOld"/> is found, throws <see cref="InvalidOperationException"/>.
+    /// Records a persistent substitution: at <see cref="Resolve"/>, every registration whose module type is
+    /// exactly <typeparamref name="TOld"/> (subclasses do not match) takes a new <typeparamref name="TNew"/>,
+    /// keeping its position and its predicate. It also applies to modules added or scanned after this call.
+    /// Calling it again for the same <typeparamref name="TOld"/> overwrites the earlier substitution;
+    /// substitutions do not chain.
     /// </summary>
-    /// <typeparam name="TOld">The module type to replace.</typeparam>
+    /// <typeparam name="TOld">The exact module type to replace.</typeparam>
     /// <typeparam name="TNew">The replacement module type.</typeparam>
     /// <returns>This collection for chaining.</returns>
     public AppModuleCollection Replace<TOld, TNew>()
         where TOld : IAppModule
         where TNew : IAppModule, new()
     {
-        var index = _modules.FindIndex(m => m.Module is TOld);
-        if (index < 0)
-            throw new InvalidOperationException($"No module of type {typeof(TOld).Name} found to replace.");
+        return Replace<TOld>(new TNew());
+    }
 
-        _modules[index] = (new TNew(), _modules[index].When);
+    /// <summary>
+    /// Records a persistent substitution: at <see cref="Resolve"/>, every registration whose module type is
+    /// exactly <typeparamref name="TOld"/> (subclasses do not match) takes <paramref name="replacement"/>,
+    /// keeping its position and its predicate. It also applies to modules added or scanned after this call.
+    /// Calling it again for the same <typeparamref name="TOld"/> overwrites the earlier substitution;
+    /// substitutions do not chain. The same instance is shared across <see cref="Resolve"/> calls.
+    /// </summary>
+    /// <typeparam name="TOld">The exact module type to replace.</typeparam>
+    /// <param name="replacement">The replacement module.</param>
+    /// <returns>This collection for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="replacement"/> is null.</exception>
+    public AppModuleCollection Replace<TOld>(IAppModule replacement) where TOld : IAppModule
+    {
+        ArgumentNullException.ThrowIfNull(replacement);
+        _replacements[typeof(TOld)] = replacement;
         return this;
     }
 
     /// <summary>
-    /// Resolves the effective plan: the modules whose predicate is absent or true for
+    /// Resolves the effective plan: substitutions applied, then the modules whose predicate is absent or true for
     /// <paramref name="builder"/>, in registration order. Each predicate is evaluated exactly once per call.
     /// </summary>
     /// <param name="builder">The host builder the predicates are evaluated against.</param>
     /// <returns>The applied modules, in registration order.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
     /// <exception cref="InvalidOperationException">
-    /// Thrown when a module type is registered more than once (predicates included) and its class does not carry
+    /// Thrown when a <c>Replace</c> names a module type that no registration has, or when a module type
+    /// (after substitution, predicates included) is registered more than once and its class does not carry
     /// <see cref="AllowMultipleInstancesAttribute"/>.
     /// </exception>
     public IReadOnlyList<IAppModule> Resolve(IHostApplicationBuilder builder)
@@ -143,8 +161,19 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        var entries = _modules
+            .Select(m => (Module: _replacements.GetValueOrDefault(m.Module.GetType(), m.Module), m.When))
+            .ToList();
+
+        var missing = _replacements.Keys.FirstOrDefault(old => _modules.All(m => m.Module.GetType() != old));
+        if (missing is not null)
+        {
+            throw new InvalidOperationException(
+                $"Cannot replace module type '{missing.FullName}': no module of that type is registered.");
+        }
+
         // Identity is checked over every registration, applied or not, so the error does not depend on the environment.
-        var duplicate = _modules
+        var duplicate = entries
             .GroupBy(m => m.Module.GetType())
             .FirstOrDefault(g => g.Count() > 1 && !g.Key.IsDefined(typeof(AllowMultipleInstancesAttribute), inherit: false));
         if (duplicate is not null)
@@ -154,7 +183,7 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
                 "Register it once, or mark the class with [AllowMultipleInstances].");
         }
 
-        return _modules.Select(m => (m.Module, m.When is null || m.When(builder))).ToList();
+        return entries.Select(m => (m.Module, m.When is null || m.When(builder))).ToList();
     }
 
     /// <summary>
