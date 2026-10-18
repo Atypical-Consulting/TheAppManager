@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Hosting;
 
 namespace TheAppManager.Tests;
 

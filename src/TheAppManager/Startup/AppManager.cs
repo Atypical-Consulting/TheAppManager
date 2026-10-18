@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Hosting;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Hosting;
 
 namespace TheAppManager;
 
