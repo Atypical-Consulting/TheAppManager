@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using TheAppManager.Modules;
@@ -34,6 +35,16 @@ public class AppManager
     public Task RunAsync()
     {
         return _app.RunAsync();
+    }
+
+    /// <summary>
+    /// Runs the web application asynchronously until it shuts down or <paramref name="cancellationToken"/> is cancelled.
+    /// </summary>
+    /// <param name="cancellationToken">Triggers the application to stop when cancelled.</param>
+    /// <returns>A task that represents the lifetime of the application.</returns>
+    public Task RunAsync(CancellationToken cancellationToken)
+    {
+        return ((IHost)_app).RunAsync(cancellationToken);
     }
 
     /// <summary>
