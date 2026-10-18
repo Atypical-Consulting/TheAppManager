@@ -19,7 +19,7 @@ installed base. Most apps migrate in a few minutes by following the table below.
 | `AddIf<T>(Func<WebApplicationBuilder, bool>)` | `AddIf<T>(Func<IHostApplicationBuilder, bool>)` | Same semantics, evaluated once against the real builder. |
 | `AddFromAssemblyOf<TModule>() where TModule : IAppModule` | `AddFromAssemblyOf<TAnchor>()` | Any type can anchor the scan. It throws when no module is found and is marked `[RequiresUnreferencedCode]`. |
 | `ModuleDiscovery.DiscoverModules(assembly)` | `modules.AddFromAssembly(assembly)` | `ModuleDiscovery` is internal. Use `[ExcludeFromDiscovery]` to skip a type. |
-| Adding the same module type twice silently ran it twice | Throws at `AddModules`, unless the class has `[AllowMultipleInstances]` | Catches accidental double registration. |
+| Adding the same module type twice silently ran it twice; scanning skipped types already added | Throws at `AddModules`, unless the class has `[AllowMultipleInstances]` | Catches accidental double registration. When you combine `Add` and scanning, mark the explicit types `[ExcludeFromDiscovery]`. |
 | `AppModuleTestHost` in the core package | `AppModuleTestHost` in the `TheAppManager.Testing` package | Production apps no longer ship `Microsoft.AspNetCore.TestHost`. |
 | `new AppModuleTestHost().Add<X>()…` | `new AppModuleTestHost(m => m.Add<X>()…)` | The host takes a composition, so tests can reuse the one `Program.cs` uses. |
 | `AppModuleTestHost.ConfigureBuilder(...)` | `ConfigureTestServices(...)` or `WebApplicationOptions` | Service overrides run after every module's `ConfigureServices`. |
