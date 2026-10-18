@@ -10,7 +10,7 @@ namespace TheAppManager.Startup;
 public class AppManagerBuilder
 {
     private readonly WebApplicationBuilder _builder;
-    private Action<WebApplicationBuilder>? _configureBuilder;
+    private readonly List<Action<WebApplicationBuilder>> _configureBuilder = [];
 
     /// <summary>
     /// Initializes a new instance of <see cref="AppManagerBuilder"/> with the specified command-line arguments.
@@ -24,13 +24,17 @@ public class AppManagerBuilder
 
     /// <summary>
     /// Registers an optional callback to configure the <see cref="WebApplicationBuilder"/>
-    /// before the application is built.
+    /// before the application is built. Callbacks accumulate and run in call order.
     /// </summary>
     /// <param name="configure">A callback that receives the builder, or <c>null</c> to skip.</param>
     /// <returns>This builder instance for chaining.</returns>
     public AppManagerBuilder ConfigureBuilder(Action<WebApplicationBuilder>? configure)
     {
-        _configureBuilder = configure;
+        if (configure is not null)
+        {
+            _configureBuilder.Add(configure);
+        }
+
         return this;
     }
 
@@ -44,7 +48,10 @@ public class AppManagerBuilder
     {
         ArgumentNullException.ThrowIfNull(modules);
 
-        _configureBuilder?.Invoke(_builder);
+        foreach (var configure in _configureBuilder)
+        {
+            configure(_builder);
+        }
 
         var app = ModulePipeline.Build(_builder, modules);
 
