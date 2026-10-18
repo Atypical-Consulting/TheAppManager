@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace TheAppManager.Testing;
 
@@ -36,19 +37,10 @@ public sealed class AppModuleTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// Conditionally adds a module.
-    /// </summary>
-    public AppModuleTestHost AddIf<TModule>(bool condition) where TModule : IAppModule, new()
-    {
-        _modules.AddIf<TModule>(condition);
-        return this;
-    }
-
-    /// <summary>
     /// Adds a module applied only when <paramref name="predicate"/> returns true for the real builder, evaluated once at start.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="predicate"/> is null.</exception>
-    public AppModuleTestHost AddIf<TModule>(Func<WebApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
+    public AppModuleTestHost AddIf<TModule>(Func<IHostApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
     {
         _modules.AddIf<TModule>(predicate);
         return this;

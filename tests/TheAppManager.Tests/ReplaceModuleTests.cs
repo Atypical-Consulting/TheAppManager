@@ -24,7 +24,7 @@ public class ReplaceModuleTests
         collection.Replace<ModuleB, ReplacementModule>();
 
         // Assert
-        var modules = collection.GetModules();
+        var modules = collection.Resolve(Builders.Empty());
         modules.Count.ShouldBe(3);
         modules[0].ShouldBeOfType<ModuleA>();
         modules[1].ShouldBeOfType<ReplacementModule>();
@@ -68,7 +68,7 @@ public class ReplaceModuleTests
         collection.Replace<ModuleA, ReplacementModule>();
 
         // Assert
-        var modules = collection.GetModules();
+        var modules = collection.Resolve(Builders.Empty());
         modules.Count.ShouldBe(3);
         modules[0].ShouldBeOfType<ReplacementModule>();
         modules[1].ShouldBeOfType<ModuleA>();

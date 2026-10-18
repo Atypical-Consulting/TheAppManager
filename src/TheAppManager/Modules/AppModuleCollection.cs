@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Reflection;
-using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Hosting;
 
 namespace TheAppManager;
 
@@ -9,7 +9,7 @@ namespace TheAppManager;
 /// </summary>
 public sealed class AppModuleCollection : IEnumerable<IAppModule>
 {
-    private readonly List<(IAppModule Module, Func<WebApplicationBuilder, bool>? When)> _modules = [];
+    private readonly List<(IAppModule Module, Func<IHostApplicationBuilder, bool>? When)> _modules = [];
 
     /// <summary>
     /// Adds a module by type. The module must have a parameterless constructor.
@@ -36,33 +36,33 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     }
 
     /// <summary>
-    /// Conditionally adds a module by type. The module is only added when <paramref name="condition"/> is true.
-    /// </summary>
-    /// <typeparam name="TModule">The module type to add.</typeparam>
-    /// <param name="condition">When true, the module is added; otherwise it is skipped.</param>
-    /// <returns>This collection for chaining.</returns>
-    public AppModuleCollection AddIf<TModule>(bool condition) where TModule : IAppModule, new()
-    {
-        if (condition)
-        {
-            _modules.Add((new TModule(), null));
-        }
-
-        return this;
-    }
-
-    /// <summary>
     /// Adds a module by type, applied only when <paramref name="predicate"/> returns true.
-    /// The predicate runs once per build, after the builder callbacks, against the real <see cref="WebApplicationBuilder"/>.
+    /// The predicate is evaluated once per <see cref="Resolve"/> call, against the real host builder.
     /// </summary>
     /// <typeparam name="TModule">The module type to add.</typeparam>
     /// <param name="predicate">Decides, from the builder (environment, configuration), whether the module is applied.</param>
     /// <returns>This collection for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="predicate"/> is null.</exception>
-    public AppModuleCollection AddIf<TModule>(Func<WebApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
+    public AppModuleCollection AddIf<TModule>(Func<IHostApplicationBuilder, bool> predicate) where TModule : IAppModule, new()
     {
         ArgumentNullException.ThrowIfNull(predicate);
         _modules.Add((new TModule(), predicate));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds an existing module instance, applied only when <paramref name="predicate"/> returns true.
+    /// The predicate is evaluated once per <see cref="Resolve"/> call, against the real host builder.
+    /// </summary>
+    /// <param name="module">The module to add.</param>
+    /// <param name="predicate">Decides, from the builder (environment, configuration), whether the module is applied.</param>
+    /// <returns>This collection for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="module"/> or <paramref name="predicate"/> is null.</exception>
+    public AppModuleCollection AddIf(IAppModule module, Func<IHostApplicationBuilder, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+        ArgumentNullException.ThrowIfNull(predicate);
+        _modules.Add((module, predicate));
         return this;
     }
 
@@ -121,22 +121,31 @@ public sealed class AppModuleCollection : IEnumerable<IAppModule>
     }
 
     /// <summary>
-    /// Returns the modules in registration order.
+    /// Resolves the effective plan: the modules whose predicate is absent or true for
+    /// <paramref name="builder"/>, in registration order. Each predicate is evaluated exactly once per call.
     /// </summary>
-    internal IReadOnlyList<IAppModule> GetModules()
+    /// <param name="builder">The host builder the predicates are evaluated against.</param>
+    /// <returns>The applied modules, in registration order.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="builder"/> is null.</exception>
+    public IReadOnlyList<IAppModule> Resolve(IHostApplicationBuilder builder)
     {
-        return _modules.Select(m => m.Module).ToList();
+        return ResolveEntries(builder).Where(e => e.Applied).Select(e => e.Module).ToList();
     }
 
     /// <summary>
-    /// Returns, in registration order, the modules whose predicate is absent or true for <paramref name="builder"/>.
+    /// Resolves every registration, in order, with whether it is applied for <paramref name="builder"/>.
     /// </summary>
-    internal IReadOnlyList<IAppModule> GetModules(WebApplicationBuilder builder)
+    internal IReadOnlyList<(IAppModule Module, bool Applied)> ResolveEntries(IHostApplicationBuilder builder)
     {
-        return _modules.Where(m => m.When is null || m.When(builder)).Select(m => m.Module).ToList();
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return _modules.Select(m => (m.Module, m.When is null || m.When(builder))).ToList();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Enumerates the registrations as declared — original instances, predicates not evaluated.
+    /// Use <see cref="Resolve"/> to get the effective plan.
+    /// </summary>
     public IEnumerator<IAppModule> GetEnumerator() => _modules.Select(m => m.Module).GetEnumerator();
 
     /// <inheritdoc />

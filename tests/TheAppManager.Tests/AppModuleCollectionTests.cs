@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using TheAppManager.Testing;
@@ -39,52 +40,108 @@ public class AppModuleCollectionTests
     }
 
     [Fact]
-    public void AddIf_True_AddsModule()
+    public void Resolve_ReturnsAppliedModulesInRegistrationOrder()
     {
-        var collection = new AppModuleCollection();
+        var a = new ModuleA();
+        var c = new ModuleC();
+        var collection = new AppModuleCollection()
+            .Add(a)
+            .AddIf<ModuleB>(_ => false)
+            .Add(c);
 
-        collection.AddIf<EmptyModule>(true);
+        var modules = collection.Resolve(Builders.Empty());
 
-        collection.Count().ShouldBe(1);
+        modules.ShouldBe([a, c]);
     }
 
     [Fact]
-    public void AddIf_False_DoesNotAdd()
+    public void Resolve_EvaluatesEachPredicateOnce()
     {
-        var collection = new AppModuleCollection();
+        var calls = 0;
+        var collection = new AppModuleCollection().AddIf<ModuleA>(_ => { calls++; return true; });
 
-        collection.AddIf<EmptyModule>(false);
+        collection.Resolve(Builders.Empty());
 
-        collection.ShouldBeEmpty();
+        calls.ShouldBe(1);
     }
 
     [Fact]
-    public void GetModules_PreservesRegistrationOrder()
+    public void AddIf_Instance_AppliedWhenPredicateTrue()
     {
-        var first = new EmptyModule();
-        var second = new EmptyModule();
-        var third = new EmptyModule();
-        var collection = new AppModuleCollection();
-        collection.Add(first);
-        collection.Add(second);
-        collection.Add(third);
+        var module = new ModuleA();
 
-        var modules = collection.GetModules();
+        var modules = new AppModuleCollection().AddIf(module, _ => true).Resolve(Builders.Empty());
 
-        modules[0].ShouldBeSameAs(first);
-        modules[1].ShouldBeSameAs(second);
-        modules[2].ShouldBeSameAs(third);
+        modules.ShouldHaveSingleItem().ShouldBeSameAs(module);
+    }
+
+    [Fact]
+    public void AddIf_Instance_SkippedWhenPredicateFalse()
+    {
+        new AppModuleCollection().AddIf(new ModuleA(), _ => false).Resolve(Builders.Empty()).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Development", 1)]
+    [InlineData("Production", 0)]
+    public void AddIf_Predicate_ReadsEnvironmentOnHostBuilder(string env, int expected)
+    {
+        var modules = new AppModuleCollection()
+            .AddIf<ModuleA>(b => b.Environment.IsDevelopment())
+            .Resolve(Builders.Empty(env));
+
+        modules.Count.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void Resolve_HostAgnosticModule_RunsAgainstNonWebBuilder()
+    {
+        var builder = Builders.Empty();
+
+        foreach (var module in new AppModuleCollection().Add<ServiceModule>().Resolve(builder))
+        {
+            module.ConfigureServices(builder);
+        }
+
+        builder.Services.ShouldContain(d => d.ServiceType == typeof(ServiceModule));
+    }
+
+    public static TheoryData<string, Action<AppModuleCollection>> NullArguments => new()
+    {
+        { "Add", c => c.Add(null!) },
+        { "AddIf<T>", c => c.AddIf<ModuleA>(null!) },
+        { "AddIf(null, p)", c => c.AddIf(null!, _ => true) },
+        { "AddIf(m, null)", c => c.AddIf(new ModuleA(), null!) },
+        { "AddFromAssembly", c => c.AddFromAssembly(null!) },
+        { "Resolve", c => c.Resolve(null!) },
+    };
+
+    [Theory]
+    [MemberData(nameof(NullArguments))]
+    public void NullArgument_Throws(string name, Action<AppModuleCollection> call)
+    {
+        name.ShouldNotBeNull();
+        Should.Throw<ArgumentNullException>(() => call(new AppModuleCollection()));
     }
 
     [Fact]
     public void FluentChaining_Works()
     {
         var collection = new AppModuleCollection()
-            .Add<EmptyModule>()
-            .AddIf<EmptyModule>(true)
-            .Add(new EmptyModule());
+            .Add<ModuleA>()
+            .AddIf<ModuleB>(_ => true)
+            .Add(new ModuleC());
 
         collection.Count().ShouldBe(3);
+    }
+
+    private sealed class ModuleA : IAppModule;
+    private sealed class ModuleB : IAppModule;
+    private sealed class ModuleC : IAppModule;
+
+    private sealed class ServiceModule : IAppModule
+    {
+        public void ConfigureServices(IHostApplicationBuilder builder) => builder.Services.AddSingleton<ServiceModule>();
     }
 
     private class EmptyModule : IAppModule;
@@ -136,7 +193,7 @@ public class AppModuleCollectionTests
     public void AddIf_NullPredicate_Throws()
     {
         Should.Throw<ArgumentNullException>(() =>
-            new AppModuleCollection().AddIf<EmptyModule>((Func<WebApplicationBuilder, bool>)null!));
+            new AppModuleCollection().AddIf<EmptyModule>((Func<IHostApplicationBuilder, bool>)null!));
     }
 
     [Fact]
@@ -144,4 +201,11 @@ public class AppModuleCollectionTests
     {
         new AppModuleCollection().AddIf<EmptyModule>(_ => false).Count().ShouldBe(1);
     }
+}
+
+/// <summary>Non-web host builders for exercising <see cref="AppModuleCollection.Resolve"/>.</summary>
+internal static class Builders
+{
+    public static IHostApplicationBuilder Empty(string environment = "Production") =>
+        Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = environment });
 }
