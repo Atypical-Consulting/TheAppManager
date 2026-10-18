@@ -1,0 +1,17 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Vulnerable-dependency audit stays a warning: Renovate's vulnerabilityAlerts own it; an advisory must not redden unrelated PRs. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- SourceLink is built into the .NET SDK (8+); Deterministic is the SDK default. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <!-- Package validation: off for 3.0.0 (intentionally breaking). Follow-up after 3.0.0 is on nuget.org:
+         EnablePackageValidation=true + PackageValidationBaselineVersion=3.0.0. -->
+  </PropertyGroup>
+
+</Project>
