@@ -46,6 +46,18 @@ public class AppModuleTestHost : IAsyncDisposable
     }
 
     /// <summary>
+    /// Replaces the first module of type <typeparamref name="TOld"/> with a new <typeparamref name="TNew"/>, keeping its position.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">No module of type <typeparamref name="TOld"/> was added.</exception>
+    public AppModuleTestHost Replace<TOld, TNew>()
+        where TOld : IAppModule
+        where TNew : IAppModule, new()
+    {
+        _modules.Replace<TOld, TNew>();
+        return this;
+    }
+
+    /// <summary>
     /// Configures the WebApplicationBuilder before modules are applied.
     /// </summary>
     public AppModuleTestHost ConfigureBuilder(Action<WebApplicationBuilder> configure)

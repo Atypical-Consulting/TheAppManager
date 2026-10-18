@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using TheAppManager.Modules;
+using TheAppManager.Testing;
 
 namespace TheAppManager.Tests;
 
@@ -69,5 +72,58 @@ public class ReplaceModuleTests
         modules[0].ShouldBeOfType<ReplacementModule>();
         modules[1].ShouldBeOfType<ModuleA>();
         modules[2].ShouldBeOfType<ModuleC>();
+    }
+
+    private class RealService;
+    private class FakeService;
+
+    private class RealServiceModule : IAppModule
+    {
+        public void ConfigureServices(WebApplicationBuilder builder) => builder.Services.AddSingleton<RealService>();
+    }
+
+    private class FakeServiceModule : IAppModule
+    {
+        public void ConfigureServices(WebApplicationBuilder builder) => builder.Services.AddSingleton<FakeService>();
+    }
+
+    private class OrderedModule(string name, List<string> log) : IAppModule
+    {
+        public void ConfigureServices(WebApplicationBuilder builder) => log.Add(name);
+    }
+
+    [Fact]
+    public async Task TestHost_Replace_RegistersFakeNotReal()
+    {
+        await using var host = await new AppModuleTestHost()
+            .Add<RealServiceModule>()
+            .Replace<RealServiceModule, FakeServiceModule>()
+            .StartAsync();
+
+        host.GetRequiredService<FakeService>().ShouldNotBeNull();
+        Should.Throw<InvalidOperationException>(() => host.GetRequiredService<RealService>());
+    }
+
+    [Fact]
+    public async Task TestHost_Replace_KeepsPosition()
+    {
+        var log = new List<string>();
+        await using var host = await new AppModuleTestHost()
+            .Add(new OrderedModule("first", log))
+            .Add<RealServiceModule>()
+            .Add(new OrderedModule("last", log))
+            .Replace<RealServiceModule, FakeServiceModule>()
+            .StartAsync();
+
+        // Fake sits between first and last: its service is registered and order is preserved.
+        log.ShouldBe(["first", "last"]);
+        host.GetRequiredService<FakeService>().ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void TestHost_Replace_ThrowsWhenModuleNotFound()
+    {
+        Should.Throw<InvalidOperationException>(
+            () => new AppModuleTestHost().Replace<ModuleB, ReplacementModule>());
     }
 }

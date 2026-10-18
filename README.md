@@ -295,10 +295,11 @@ public class FakeAuthModule : IAppModule
     }
 }
 
-var modules = new AppModuleCollection()
+await using var host = await new AppModuleTestHost()
     .Add<AuthModule>()
     .Add<WeatherModule>()
-    .Replace<AuthModule, FakeAuthModule>();
+    .Replace<AuthModule, FakeAuthModule>()
+    .StartAsync();
 ```
 
 ## Async Support
