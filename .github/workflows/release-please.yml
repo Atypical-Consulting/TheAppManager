@@ -19,6 +19,8 @@ permissions:
   pull-requests: write
   # release-please creates the `autorelease: pending` label it uses to find the merged release PR.
   issues: write
+  # Dispatch CI on the release PR (a PR opened with GITHUB_TOKEN does not start pull_request workflows).
+  actions: write
 
 concurrency:
   group: release-please
@@ -33,11 +35,19 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: release
-        uses: googleapis/release-please-action@v5
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           target-branch: dev
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # workflow_dispatch is exempt from the GITHUB_TOKEN rule: run CI on the release PR's head so it carries
+      # checks. Falls back to the branch release-please names for this repo if `prs` is not populated.
+      - name: Run CI on the release PR
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "${{ fromJSON(steps.release.outputs.prs || '[{}]')[0].headBranchName || 'release-please--branches--dev--components--TheAppManager' }}"
 
   publish:
     name: Pack & publish
@@ -49,12 +59,12 @@ jobs:
       contents: write # attach the package to the GitHub Release
       id-token: write # request the GitHub OIDC token for NuGet Trusted Publishing
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -81,4 +91,4 @@ jobs:
       - name: Attach package to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" ./nupkg/*.nupkg --clobber
+        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" ./nupkg/*.nupkg ./nupkg/*.snupkg --clobber

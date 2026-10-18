@@ -37,7 +37,7 @@ tests/TheAppManager.Tests/      - Unit and integration tests
 
 ## Making Changes
 
-1. Create a feature branch from `main`:
+1. Create a feature branch from `dev`:
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -70,9 +70,10 @@ General guidelines:
    dotnet build --configuration Release
    ```
 3. Ensure all tests pass.
-4. Push your branch and open a Pull Request against `main`.
-5. Describe what your PR does and why.
-6. Address any review feedback.
+4. Push your branch and open a Pull Request against `dev`.
+5. Title the PR as a [Conventional Commit](https://www.conventionalcommits.org/): `type(scope): summary`, with `!` before the colon for a breaking change (`feat!: ...`). PRs are squash-merged, so the title becomes the commit release-please reads to pick the next version; the `PR title` check enforces it. Allowed types: `feat`, `fix`, `perf`, `refactor`, `revert`, `docs`, `test`, `build`, `ci`, `chore`.
+6. Describe what your PR does and why.
+7. Address any review feedback.
 
 ## Reporting Issues
 
